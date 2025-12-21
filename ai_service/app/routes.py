@@ -1,6 +1,6 @@
 """
-API Routes for AuraProject AI Service v1.1.0
-Segmentation + LLM outfit generation.
+API Routes for AuraProject AI Service v1.1.1
+Segmentation with attributes + LLM outfit generation.
 """
 import os
 import logging
@@ -22,6 +22,7 @@ async def health_check():
     api_key = os.getenv("OPENAI_API_KEY")
     return {
         "status": "ok",
+        "version": "1.1.1",
         "llm_configured": bool(api_key),
         "provider": "openai" if api_key else "none"
     }
@@ -35,9 +36,10 @@ async def create_outfit(
     """
     Generate 5 outfit recommendations from user image.
     
+    v1.1.1 Features:
     - Segments clothing from image
+    - Extracts type, color, style for each item
     - Uses LLM to generate 5 outfits respecting detected items
-    - Returns masks and outfit suggestions
     """
     try:
         # Create job
@@ -63,6 +65,7 @@ async def create_outfit(
                 "input_image": f"/ai/assets/jobs/{job_id}/input.jpg"
             },
             "detected_clothing": result["detected_clothing"],
+            "detected_items": result.get("detected_items", {}),
             "masks": {
                 k: f"/ai/assets/jobs/{job_id}/masks/{v}"
                 for k, v in result.get("masks", {}).items()
@@ -70,7 +73,7 @@ async def create_outfit(
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
             "status": result.get("status", "completed"),
-            "note": "v1.1.0 - segmentation + LLM planning active"
+            "note": "v1.1.1 - segmentation with attributes + LLM planning"
         }
         
         if result.get("error"):

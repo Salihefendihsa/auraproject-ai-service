@@ -1,6 +1,12 @@
-# AuraProject AI Service v1.1.0
+# AuraProject AI Service v1.1.1
 
-Real clothing segmentation + LLM-powered outfit recommendations.
+Segmentation with attribute extraction + LLM-powered outfit recommendations.
+
+## What's New in v1.1.1
+
+- **Attribute Extraction**: Type, color, style for each detected item
+- **CLIP Models**: OpenAI CLIP + Fashion-CLIP for classification
+- **Enriched Response**: `detected_items` with full details
 
 ## Quick Start
 
@@ -15,52 +21,51 @@ $env:OPENAI_API_KEY = "sk-..."
 .\run.ps1
 ```
 
-**Note:** First run downloads SegFormer model (~300MB).
+**Note:** First request downloads models (~1.5GB total).
 
-## API Endpoints
+## API Response
 
-### GET /health
-```json
-{"status": "ok", "llm_configured": true, "provider": "openai"}
-```
-
-### POST /ai/outfit
-Upload an image, get 5 outfit recommendations.
-
-**Request:** `multipart/form-data`
-- `image` (file, required)
-- `user_note` (string, optional)
-
-**Response:**
 ```json
 {
-  "job_id": "uuid",
-  "seed": {"input_image": "/ai/assets/jobs/{id}/input.jpg"},
-  "detected_clothing": {"top": true, "bottom": false, ...},
-  "masks": {"top": "/ai/assets/jobs/{id}/masks/mask_top.png"},
-  "raw_labels": ["Upper-clothes", "Pants", ...],
-  "outfits": [5 outfit objects],
-  "note": "v1.1.0 - segmentation + LLM planning active"
+  "job_id": "...",
+  "detected_clothing": {"top": true, "bottom": true, ...},
+  "detected_items": {
+    "top": {
+      "present": true,
+      "type": "t-shirt",
+      "color": "white",
+      "style": "casual",
+      "source": "user"
+    },
+    "outerwear": {
+      "present": false
+    }
+  },
+  "masks": {...},
+  "outfits": [5 items],
+  "note": "v1.1.1 - segmentation with attributes + LLM planning"
 }
 ```
 
-### GET /ai/assets/{path}
-Serve saved images and masks.
+## Models Used
+
+| Model | Purpose |
+|-------|---------|
+| mattmdjaga/segformer_b2_clothes | Clothing segmentation |
+| openai/clip-vit-large-patch14 | Type + color classification |
+| patrickjohncyh/fashion-clip | Style classification |
 
 ## Project Structure
 
 ```
-AuraProject AI Service/
-├── ai_service/
-│   ├── app/
-│   │   ├── main.py
-│   │   └── routes.py
-│   ├── core/
-│   │   ├── orchestrator.py
-│   │   └── storage.py
-│   └── vision/
-│       └── segmenter.py
-├── setup.ps1
-├── run.ps1
-└── requirements.txt
+ai_service/
+├── app/
+│   ├── main.py
+│   └── routes.py
+├── core/
+│   ├── orchestrator.py
+│   └── storage.py
+└── vision/
+    ├── segmenter.py    # SegFormer
+    └── attributes.py   # CLIP extractors
 ```

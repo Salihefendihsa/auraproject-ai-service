@@ -1,6 +1,6 @@
 """
-Clothing Segmenter Module (v1.1.0)
-Uses SegFormer model from Hugging Face for clothing detection.
+Clothing Segmenter Module (v1.1.1)
+Uses SegFormer for segmentation + CLIP for attribute extraction.
 """
 import logging
 from pathlib import Path
@@ -27,7 +27,6 @@ CLOTHING_LABEL_MAP = {
     "Left-shoe": "shoes",
     "Right-shoe": "shoes",
     "Scarf": "outerwear",
-    # Note: This model doesn't have explicit outerwear - we handle this gracefully
 }
 
 
@@ -71,12 +70,12 @@ class ClothingSegmenter:
             logger.error(f"Failed to load segmentation model: {e}")
             self._load_failed = True
     
-    def segment(self, image_path: str) -> Dict[str, Any]:
+    def segment(self, image_path: str, extract_attributes: bool = True) -> Dict[str, Any]:
         """
-        Segment clothing from image.
+        Segment clothing from image and optionally extract attributes.
         
         Returns:
-            Dict with detected_clothing booleans, raw_labels, masks, error
+            Dict with detected_clothing, detected_items, masks, raw_labels
         """
         result = {
             "top": False,
@@ -85,8 +84,13 @@ class ClothingSegmenter:
             "shoes": False,
             "masks": {},
             "raw_labels": [],
+            "detected_items": {},
             "error": None
         }
+        
+        # Initialize detected_items structure
+        for category in ["top", "bottom", "outerwear", "shoes"]:
+            result["detected_items"][category] = {"present": False}
         
         # Try to load model
         self._load_model()
@@ -115,13 +119,17 @@ class ClothingSegmenter:
                     # Get mask
                     mask = segment.get("mask")
                     if mask:
-                        # Combine masks for same category (e.g., left+right shoe)
+                        # Combine masks for same category
                         if category in result["masks"]:
                             existing = result["masks"][category]
                             combined = np.maximum(np.array(existing), np.array(mask))
                             result["masks"][category] = Image.fromarray(combined.astype(np.uint8))
                         else:
                             result["masks"][category] = mask
+            
+            # Extract attributes for detected items
+            if extract_attributes:
+                self._extract_item_attributes(image, result)
             
             logger.info(f"Segmentation complete: {result['raw_labels']}")
             
@@ -130,6 +138,47 @@ class ClothingSegmenter:
             result["error"] = str(e)
         
         return result
+    
+    def _extract_item_attributes(self, image: Image.Image, result: Dict[str, Any]):
+        """Extract type, color, style for each detected clothing item."""
+        try:
+            from ai_service.vision.attributes import (
+                attribute_extractor,
+                crop_clothing_from_mask
+            )
+            
+            for category in ["top", "bottom", "outerwear", "shoes"]:
+                if result[category] and category in result["masks"]:
+                    mask = result["masks"][category]
+                    
+                    # Crop clothing region
+                    cropped = crop_clothing_from_mask(image, mask)
+                    
+                    if cropped:
+                        # Extract attributes
+                        attrs = attribute_extractor.extract_attributes(cropped, category)
+                        
+                        result["detected_items"][category] = {
+                            "present": True,
+                            "type": attrs.get("type", "unknown"),
+                            "color": attrs.get("color", "unknown"),
+                            "style": attrs.get("style", "casual"),
+                            "source": "user"
+                        }
+                    else:
+                        result["detected_items"][category] = {
+                            "present": True,
+                            "source": "user"
+                        }
+                else:
+                    result["detected_items"][category] = {
+                        "present": False
+                    }
+                    
+        except ImportError as e:
+            logger.warning(f"Attribute extractor not available: {e}")
+        except Exception as e:
+            logger.error(f"Attribute extraction error: {e}")
     
     def save_masks(self, masks: Dict[str, Image.Image], output_dir: str) -> Dict[str, str]:
         """Save masks to disk as PNG files."""

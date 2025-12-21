@@ -1,6 +1,6 @@
 """
-Pipeline Orchestrator (v1.1.0)
-Coordinates segmentation and LLM-based outfit planning.
+Pipeline Orchestrator (v1.1.1)
+Coordinates segmentation with attributes + LLM-based outfit planning.
 """
 import os
 import json
@@ -19,9 +19,10 @@ SYSTEM_PROMPT = """You are a fashion stylist AI. Generate outfit recommendations
 RULES:
 1. Return EXACTLY 5 outfits as JSON
 2. Each outfit has: top, bottom, outerwear, shoes
-3. If user already has an item (provided below), keep it as source="user"
+3. If user already has an item (provided below), keep it with source="user"
 4. For missing items, suggest new ones with source="suggested"
-5. Return ONLY valid JSON, no markdown
+5. Match the user's detected style and colors where appropriate
+6. Return ONLY valid JSON, no markdown
 
 OUTPUT FORMAT:
 {
@@ -49,11 +50,11 @@ async def run_pipeline(
     """
     Run the full analysis pipeline.
     
-    Steps:
-    1. Run segmentation
+    Steps (v1.1.1):
+    1. Run segmentation with attribute extraction
     2. Save masks
-    3. Call LLM with detected clothing context
-    4. Return complete result
+    3. Call LLM with detected items context
+    4. Return complete result with detected_items
     """
     start_time = time.time()
     
@@ -65,6 +66,7 @@ async def run_pipeline(
             "outerwear": False,
             "shoes": False
         },
+        "detected_items": {},
         "masks": {},
         "raw_labels": [],
         "outfits": [],
@@ -76,18 +78,19 @@ async def run_pipeline(
     masks_dir = str(job_path / "masks")
     
     # ================================================
-    # STEP 1: Segmentation
+    # STEP 1: Segmentation with Attributes
     # ================================================
-    logger.info(f"[{job_id}] Running segmentation...")
+    logger.info(f"[{job_id}] Running segmentation with attribute extraction...")
     
     try:
-        seg_result = segmenter.segment(image_path)
+        seg_result = segmenter.segment(image_path, extract_attributes=True)
         
         result["detected_clothing"]["top"] = seg_result.get("top", False)
         result["detected_clothing"]["bottom"] = seg_result.get("bottom", False)
         result["detected_clothing"]["outerwear"] = seg_result.get("outerwear", False)
         result["detected_clothing"]["shoes"] = seg_result.get("shoes", False)
         result["raw_labels"] = seg_result.get("raw_labels", [])
+        result["detected_items"] = seg_result.get("detected_items", {})
         
         # Save masks
         masks = seg_result.get("masks", {})
@@ -100,7 +103,9 @@ async def run_pipeline(
             
     except Exception as e:
         logger.error(f"Segmentation failed: {e}")
-        # Continue - LLM can still generate outfits
+        # Initialize empty detected_items
+        for cat in ["top", "bottom", "outerwear", "shoes"]:
+            result["detected_items"][cat] = {"present": False}
     
     # ================================================
     # STEP 2: LLM Outfit Generation
@@ -109,7 +114,7 @@ async def run_pipeline(
     
     try:
         outfits = await generate_outfits_llm(
-            detected_clothing=result["detected_clothing"],
+            detected_items=result["detected_items"],
             user_note=user_note
         )
         result["outfits"] = outfits
@@ -129,23 +134,34 @@ async def run_pipeline(
 
 
 async def generate_outfits_llm(
-    detected_clothing: Dict[str, bool],
+    detected_items: Dict[str, Any],
     user_note: Optional[str] = None
 ) -> list:
-    """Generate 5 outfits using OpenAI LLM."""
+    """Generate 5 outfits using OpenAI LLM with detected item context."""
     
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not set")
     
-    # Build user prompt with detected clothing context
-    detected_parts = [k for k, v in detected_clothing.items() if v]
-    missing_parts = [k for k, v in detected_clothing.items() if not v]
+    # Build context from detected items
+    detected_context = []
+    missing_parts = []
+    
+    for category, item in detected_items.items():
+        if item.get("present"):
+            item_type = item.get("type", "unknown")
+            item_color = item.get("color", "unknown")
+            item_style = item.get("style", "casual")
+            detected_context.append(
+                f"{category}: {item_color} {item_type} ({item_style} style)"
+            )
+        else:
+            missing_parts.append(category)
     
     user_prompt = f"""Generate 5 complete outfits.
 
 DETECTED on user (keep these, mark source="user"):
-{', '.join(detected_parts) if detected_parts else 'None detected'}
+{chr(10).join(detected_context) if detected_context else 'None detected'}
 
 MISSING (must suggest, mark source="suggested"):
 {', '.join(missing_parts) if missing_parts else 'None missing'}
