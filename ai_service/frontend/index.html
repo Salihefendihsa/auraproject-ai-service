@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuraProject AI Service - Demo</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 AuraProject AI</h1>
+            <p class="subtitle">Virtual Try-On Demo v1.4.4</p>
+        </header>
+
+        <section class="upload-section">
+            <div class="upload-box" id="uploadBox">
+                <input type="file" id="imageInput" accept="image/*" hidden>
+                <div class="upload-content">
+                    <span class="upload-icon">📷</span>
+                    <p>Click to upload your photo</p>
+                    <small>or drag and drop</small>
+                </div>
+                <img id="previewImage" class="preview-image" hidden>
+            </div>
+            
+            <div class="controls">
+                <input type="text" id="userNote" placeholder="Optional: Add style preferences...">
+                <button id="generateBtn" class="btn-primary" disabled>Generate Outfits</button>
+            </div>
+        </section>
+
+        <section class="status-section" id="statusSection" hidden>
+            <div class="status-card">
+                <div class="status-icon" id="statusIcon">⏳</div>
+                <div class="status-info">
+                    <p class="job-id">Job ID: <span id="jobId">-</span></p>
+                    <p class="status-text" id="statusText">Processing...</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="results-section" id="resultsSection" hidden>
+            <h2>Your Outfits</h2>
+            <div class="outfits-grid" id="outfitsGrid"></div>
+        </section>
+
+        <section class="error-section" id="errorSection" hidden>
+            <div class="error-card">
+                <span class="error-icon">❌</span>
+                <p id="errorText">An error occurred</p>
+                <button class="btn-secondary" onclick="location.reload()">Try Again</button>
+            </div>
+        </section>
+
+        <footer>
+            <p>Powered by SegFormer + CLIP + OpenAI + Stable Diffusion</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

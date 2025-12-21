@@ -1,65 +1,73 @@
-# AuraProject AI Service v1.4.3
+# AuraProject AI Service v1.4.4
 
-MongoDB job persistence for production reliability.
+Full-stack AI outfit recommendation with virtual try-on.
 
 ## Features
 
+- **Frontend Demo**: Upload → Generate → View Try-On
 - **MongoDB**: Persistent job storage
 - **Caching**: Disk-based with 24h TTL
 - **Hybrid LLM**: OpenAI + Gemini
 - **Segmentation**: SegFormer
-- **Attributes**: CLIP
 - **Try-On**: SD Inpainting
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | Yes | - | OpenAI API key |
-| `GEMINI_API_KEY` | No | - | Gemini API key |
-| `MONGO_URI` | No | `mongodb://localhost:27017` | MongoDB connection |
-| `MONGO_DB_NAME` | No | `aura_ai` | Database name |
-| `AURA_CACHE_ENABLED` | No | `true` | Enable caching |
 
 ## Quick Start
 
 ```powershell
-# Start MongoDB (Docker)
+# 1. Start MongoDB (Docker)
 docker run -d -p 27017:27017 --name mongo mongo:7
 
-# Set API key
+# 2. Set API key
 $env:OPENAI_API_KEY = "sk-..."
 
-# Run
+# 3. Run
 .\run.ps1
+
+# 4. Open browser
+# http://localhost:8000
 ```
+
+## Frontend Demo
+
+Open `http://localhost:8000` in your browser:
+
+1. **Upload** your photo
+2. Click **Generate Outfits**
+3. Wait for processing (polls every 2s)
+4. View **5 outfit cards** with try-on renders
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Service status (LLM, cache, MongoDB) |
-| `/ai/outfit` | POST | Generate outfits (persisted to MongoDB) |
-| `/ai/jobs/{id}` | GET | Retrieve persisted job |
-| `/ai/assets/{path}` | GET | Serve images/renders |
+| `/` | GET | Frontend demo |
+| `/health` | GET | Service status |
+| `/ai/outfit` | POST | Generate outfits |
+| `/ai/jobs/{id}` | GET | Get job by ID |
+| `/ai/assets/{path}` | GET | Serve images |
 
-## Health Check
+## Environment Variables
 
-```json
-{
-  "status": "ok",
-  "version": "1.4.3",
-  "mongo": {"status": "connected"},
-  "cache": {"enabled": true},
-  "llm": {"active_provider": "openai"}
-}
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | - | Required |
+| `GEMINI_API_KEY` | - | Optional |
+| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB |
+
+## Project Structure
+
 ```
-
-## Job Persistence
-
-Jobs survive server restarts:
-```
-POST /ai/outfit → job_id
-[server restart]
-GET /ai/jobs/{job_id} → full job data
+ai_service/
+├── frontend/         ← NEW
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── app/
+├── cache/
+├── config/
+├── core/
+├── db/
+├── llm/
+├── renderer/
+└── vision/
 ```
