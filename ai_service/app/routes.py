@@ -1,6 +1,6 @@
 """
-API Routes for AuraProject AI Service v1.3.0
-Hybrid LLM (OpenAI + Gemini) + Segmentation + Try-On.
+API Routes for AuraProject AI Service v1.4.1
+Config-based provider management + Hybrid LLM + Try-On.
 """
 import logging
 from typing import Optional
@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from ai_service.core.storage import storage
 from ai_service.core.orchestrator import run_pipeline
-from ai_service.llm import router as llm_router
+from ai_service.config import get_provider_status, get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +18,22 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint with LLM provider status."""
-    llm_status = llm_router.get_provider_status()
+    """Health check endpoint with provider configuration status."""
+    settings = get_settings()
+    provider_status = get_provider_status()
     
     return {
         "status": "ok",
-        "version": "1.3.0",
-        "llm": llm_status,
-        "features": ["segmentation", "attributes", "hybrid_llm", "tryon"]
+        "version": "1.4.1",
+        "llm": {
+            "enabled": provider_status["enabled"],
+            "primary": provider_status["primary"],
+            "secondary": provider_status["secondary"],
+            "availability": provider_status["availability"],
+            "active_provider": provider_status["active_provider"],
+            "daily_limit": provider_status["daily_limit"],
+        },
+        "features": ["segmentation", "attributes", "hybrid_llm", "tryon", "config"]
     }
 
 
@@ -37,11 +45,10 @@ async def create_outfit(
     """
     Generate 5 outfit recommendations with try-on renders.
     
-    v1.3.0 Features:
-    - Segments clothing from image
-    - Extracts type, color, style for each item
-    - Uses hybrid LLM (Gemini context + OpenAI planning)
-    - Renders virtual try-on images using SD Inpainting
+    v1.4.1 Features:
+    - Config-based provider management
+    - Automatic fallback to secondary provider
+    - Respects AURA_LLM_ENABLED and priority settings
     """
     try:
         # Create job
@@ -75,7 +82,7 @@ async def create_outfit(
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
             "status": result.get("status", "completed"),
-            "note": "v1.3.0 - hybrid LLM (OpenAI + Gemini) + try-on"
+            "note": "v1.4.1 - config-based provider management"
         }
         
         if result.get("error"):
@@ -90,10 +97,7 @@ async def create_outfit(
 
 @router.get("/ai/assets/{file_path:path}")
 async def serve_asset(file_path: str):
-    """
-    Serve static files from job directories.
-    Serves: input images, masks, and render outputs.
-    """
+    """Serve static files from job directories."""
     try:
         full_path = storage.get_file_path(file_path)
         
