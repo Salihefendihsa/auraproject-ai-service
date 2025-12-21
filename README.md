@@ -1,98 +1,65 @@
-# AuraProject AI Service v1.4.2
+# AuraProject AI Service v1.4.3
 
-Request-level caching for cost reduction.
+MongoDB job persistence for production reliability.
 
 ## Features
 
-- **Caching**: Disk-based JSON cache with 24h TTL
-- **Config**: Centralized settings from env vars
-- **Segmentation**: SegFormer clothing detection
-- **Attributes**: CLIP type/color/style
+- **MongoDB**: Persistent job storage
+- **Caching**: Disk-based with 24h TTL
 - **Hybrid LLM**: OpenAI + Gemini
-- **Virtual Try-On**: SD Inpainting
-
-## Caching
-
-### How It Works
-
-```
-Request → Segmentation → Generate Cache Key → Check Cache
-                                    ↓
-                              Cache Hit? → Return Cached Response
-                                    ↓ No
-                              LLM + Rendering → Save to Cache
-```
-
-### Cache Key Generation
-
-Key is SHA256 hash of:
-- Input image hash
-- Detected clothing (booleans)
-- Detected attributes (type, color, style)
-- User note
-- Active LLM provider
-
-### Cost Reduction
-
-| Scenario | LLM Calls | Render Time |
-|----------|-----------|-------------|
-| First request | 1 | Full |
-| Same image + context | 0 (cached) | 0 |
-
-### TTL
-
-Default: **24 hours** (1440 minutes)
+- **Segmentation**: SegFormer
+- **Attributes**: CLIP
+- **Try-On**: SD Inpainting
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_API_KEY` | - | OpenAI API key |
-| `GEMINI_API_KEY` | - | Gemini API key |
-| `AURA_LLM_ENABLED` | `true` | Enable LLM |
-| `AURA_LLM_PRIMARY` | `openai` | Primary provider |
-| `AURA_LLM_SECONDARY` | `gemini` | Secondary provider |
-| `AURA_CACHE_ENABLED` | `true` | Enable caching |
-| `AURA_CACHE_TTL_MINUTES` | `1440` | Cache TTL |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENAI_API_KEY` | Yes | - | OpenAI API key |
+| `GEMINI_API_KEY` | No | - | Gemini API key |
+| `MONGO_URI` | No | `mongodb://localhost:27017` | MongoDB connection |
+| `MONGO_DB_NAME` | No | `aura_ai` | Database name |
+| `AURA_CACHE_ENABLED` | No | `true` | Enable caching |
+
+## Quick Start
+
+```powershell
+# Start MongoDB (Docker)
+docker run -d -p 27017:27017 --name mongo mongo:7
+
+# Set API key
+$env:OPENAI_API_KEY = "sk-..."
+
+# Run
+.\run.ps1
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Service status (LLM, cache, MongoDB) |
+| `/ai/outfit` | POST | Generate outfits (persisted to MongoDB) |
+| `/ai/jobs/{id}` | GET | Retrieve persisted job |
+| `/ai/assets/{path}` | GET | Serve images/renders |
 
 ## Health Check
 
 ```json
 {
   "status": "ok",
-  "version": "1.4.2",
-  "llm": {...},
-  "cache": {
-    "enabled": true,
-    "type": "disk_json",
-    "ttl_minutes": 1440,
-    "entries": 5
-  }
+  "version": "1.4.3",
+  "mongo": {"status": "connected"},
+  "cache": {"enabled": true},
+  "llm": {"active_provider": "openai"}
 }
 ```
 
-## API Response
+## Job Persistence
 
-```json
-{
-  "job_id": "...",
-  "cache_hit": true,
-  "outfits": [...],
-  "note": "v1.4.2 - caching enabled for cost reduction"
-}
+Jobs survive server restarts:
 ```
-
-## Project Structure
-
-```
-ai_service/
-├── app/
-├── cache/            ← NEW
-│   ├── cache_store.py
-│   └── cache_manager.py
-├── config/
-├── core/
-├── llm/
-├── renderer/
-└── vision/
+POST /ai/outfit → job_id
+[server restart]
+GET /ai/jobs/{job_id} → full job data
 ```
