@@ -1,6 +1,6 @@
 """
-AuraProject AI Service v1.1.1
-Segmentation with attributes + LLM-powered outfit recommendations.
+AuraProject AI Service v1.2.0
+Segmentation + Attributes + LLM + Virtual Try-On.
 """
 import logging
 from contextlib import asynccontextmanager
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("=" * 50)
-    logger.info("AuraProject AI Service v1.1.1 Starting...")
-    logger.info("Features: Segmentation + Attributes + LLM")
+    logger.info("AuraProject AI Service v1.2.0 Starting...")
+    logger.info("Features: Segmentation + Attributes + LLM + Try-On")
     logger.info("=" * 50)
     
     # Initialize storage
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
         logger.warning("⚠ OPENAI_API_KEY not set")
     
     logger.info("✓ Service ready!")
-    logger.info("Note: CLIP models load on first request (~1GB download)")
+    logger.info("Note: First request downloads models (~3GB total)")
     logger.info("=" * 50)
     
     yield
@@ -47,8 +47,8 @@ async def lifespan(app: FastAPI):
 # Create app
 app = FastAPI(
     title="AuraProject AI Service",
-    description="Segmentation + Attributes + LLM outfit recommendations",
-    version="1.1.1",
+    description="Segmentation + Attributes + LLM + Virtual Try-On",
+    version="1.2.0",
     lifespan=lifespan
 )
 
@@ -69,7 +69,7 @@ async def root():
     """Root endpoint."""
     return {
         "service": "AuraProject AI Service",
-        "version": "1.1.1",
-        "features": ["segmentation", "attribute_extraction", "llm_planning"],
+        "version": "1.2.0",
+        "features": ["segmentation", "attribute_extraction", "llm_planning", "virtual_tryon"],
         "docs": "/docs"
     }

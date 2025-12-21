@@ -1,17 +1,18 @@
-# AuraProject AI Service v1.1.1
+# AuraProject AI Service v1.2.0
 
-Segmentation with attribute extraction + LLM-powered outfit recommendations.
+Virtual try-on with Stable Diffusion Inpainting.
 
-## What's New in v1.1.1
+## Features
 
-- **Attribute Extraction**: Type, color, style for each detected item
-- **CLIP Models**: OpenAI CLIP + Fashion-CLIP for classification
-- **Enriched Response**: `detected_items` with full details
+- **Segmentation**: SegFormer clothing detection
+- **Attributes**: CLIP type/color/style extraction
+- **LLM Planning**: OpenAI outfit recommendations
+- **Virtual Try-On**: SD Inpainting for suggested items
 
 ## Quick Start
 
 ```powershell
-# 1. Setup (creates .venv)
+# 1. Setup
 .\setup.ps1
 
 # 2. Set API key
@@ -21,29 +22,35 @@ $env:OPENAI_API_KEY = "sk-..."
 .\run.ps1
 ```
 
-**Note:** First request downloads models (~1.5GB total).
+## First Run
+
+Downloads models (~3GB total):
+- SegFormer (~300MB)
+- CLIP models (~1GB)  
+- SD Inpainting (~2GB)
+
+## Performance
+
+| Device | Segmentation | Try-On (5 outfits) |
+|--------|--------------|-------------------|
+| GPU | ~3s | ~30s |
+| CPU | ~15s | ~5-10min |
 
 ## API Response
 
 ```json
 {
   "job_id": "...",
-  "detected_clothing": {"top": true, "bottom": true, ...},
-  "detected_items": {
-    "top": {
-      "present": true,
-      "type": "t-shirt",
-      "color": "white",
-      "style": "casual",
-      "source": "user"
-    },
-    "outerwear": {
-      "present": false
+  "detected_items": {...},
+  "outfits": [
+    {
+      "rank": 1,
+      "items": {...},
+      "render_url": "/ai/assets/jobs/{id}/renders/outfit_1.png",
+      "tryon_method": "inpainting"
     }
-  },
-  "masks": {...},
-  "outfits": [5 items],
-  "note": "v1.1.1 - segmentation with attributes + LLM planning"
+  ],
+  "note": "v1.2.0 - segmentation + attributes + LLM + try-on"
 }
 ```
 
@@ -51,21 +58,14 @@ $env:OPENAI_API_KEY = "sk-..."
 
 | Model | Purpose |
 |-------|---------|
-| mattmdjaga/segformer_b2_clothes | Clothing segmentation |
-| openai/clip-vit-large-patch14 | Type + color classification |
-| patrickjohncyh/fashion-clip | Style classification |
+| mattmdjaga/segformer_b2_clothes | Segmentation |
+| openai/clip-vit-large-patch14 | Type + color |
+| patrickjohncyh/fashion-clip | Style |
+| runwayml/stable-diffusion-inpainting | Try-on |
 
-## Project Structure
+## Fallback Behavior
 
-```
-ai_service/
-├── app/
-│   ├── main.py
-│   └── routes.py
-├── core/
-│   ├── orchestrator.py
-│   └── storage.py
-└── vision/
-    ├── segmenter.py    # SegFormer
-    └── attributes.py   # CLIP extractors
-```
+If try-on fails (GPU/model errors):
+- Input image is copied as render output
+- API still returns 200 OK
+- `tryon_method` = "fallback"

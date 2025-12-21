@@ -1,6 +1,6 @@
 """
-API Routes for AuraProject AI Service v1.1.1
-Segmentation with attributes + LLM outfit generation.
+API Routes for AuraProject AI Service v1.2.0
+Segmentation + Attributes + LLM + Virtual Try-On.
 """
 import os
 import logging
@@ -22,9 +22,10 @@ async def health_check():
     api_key = os.getenv("OPENAI_API_KEY")
     return {
         "status": "ok",
-        "version": "1.1.1",
+        "version": "1.2.0",
         "llm_configured": bool(api_key),
-        "provider": "openai" if api_key else "none"
+        "provider": "openai" if api_key else "none",
+        "features": ["segmentation", "attributes", "llm", "tryon"]
     }
 
 
@@ -34,12 +35,13 @@ async def create_outfit(
     user_note: Optional[str] = Form(None, description="Optional notes")
 ):
     """
-    Generate 5 outfit recommendations from user image.
+    Generate 5 outfit recommendations with try-on renders.
     
-    v1.1.1 Features:
+    v1.2.0 Features:
     - Segments clothing from image
     - Extracts type, color, style for each item
-    - Uses LLM to generate 5 outfits respecting detected items
+    - Uses LLM to generate 5 outfits
+    - Renders virtual try-on images using SD Inpainting
     """
     try:
         # Create job
@@ -73,7 +75,7 @@ async def create_outfit(
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
             "status": result.get("status", "completed"),
-            "note": "v1.1.1 - segmentation with attributes + LLM planning"
+            "note": "v1.2.0 - segmentation + attributes + LLM + try-on"
         }
         
         if result.get("error"):
@@ -90,8 +92,9 @@ async def create_outfit(
 async def serve_asset(file_path: str):
     """
     Serve static files from job directories.
+    Serves: input images, masks, and render outputs.
     
-    Example: /ai/assets/jobs/{job_id}/input.jpg
+    Example: /ai/assets/jobs/{job_id}/renders/outfit_1.png
     """
     try:
         full_path = storage.get_file_path(file_path)
