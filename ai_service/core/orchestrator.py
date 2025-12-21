@@ -1,6 +1,6 @@
 """
-Pipeline Orchestrator (v1.4.3)
-Coordinates segmentation + LLM + try-on + caching + MongoDB persistence.
+Pipeline Orchestrator (v1.5.0)
+With cost tracking and observability.
 """
 import time
 import logging
@@ -12,6 +12,7 @@ from ai_service.llm import router as llm_router
 from ai_service.cache import cache_manager, get_cache_key
 from ai_service.config import get_active_provider
 from ai_service.db import mongo
+from ai_service.observability import log_request, increment_request, estimate_cost, is_logging_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -22,27 +23,13 @@ async def run_pipeline(
     user_note: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Run the full analysis and rendering pipeline with MongoDB persistence.
-    
-    Steps (v1.4.3):
-    1. Create job in MongoDB (status=pending)
-    2. Run segmentation → update DB
-    3. Check cache
-    4. Call LLM → update DB
-    5. Render try-on → update DB
-    6. Save to cache
-    7. Mark job complete in DB
+    Run the full pipeline with observability tracking.
     """
     start_time = time.time()
     
     result = {
         "job_id": job_id,
-        "detected_clothing": {
-            "top": False,
-            "bottom": False,
-            "outerwear": False,
-            "shoes": False
-        },
+        "detected_clothing": {"top": False, "bottom": False, "outerwear": False, "shoes": False},
         "detected_items": {},
         "masks": {},
         "raw_labels": [],
@@ -50,6 +37,7 @@ async def run_pipeline(
         "renders": {},
         "status": "completed",
         "cache_hit": False,
+        "cost": None,
         "error": None
     }
     
@@ -58,18 +46,12 @@ async def run_pipeline(
     renders_dir = str(job_path / "renders")
     active_provider = get_active_provider()
     
-    # ================================================
-    # STEP 0: Create job in MongoDB
-    # ================================================
+    # Create job in MongoDB
     job_doc = mongo.create_job_document(job_id)
     job_doc["assets"]["input_image"] = f"/ai/assets/jobs/{job_id}/input.jpg"
     mongo.insert_job(job_doc)
     
-    # ================================================
-    # STEP 1: Segmentation with Attributes
-    # ================================================
-    logger.info(f"[{job_id}] Running segmentation...")
-    
+    # Segmentation
     try:
         seg_result = segmenter.segment(image_path, extract_attributes=True)
         
@@ -80,13 +62,11 @@ async def run_pipeline(
         result["raw_labels"] = seg_result.get("raw_labels", [])
         result["detected_items"] = seg_result.get("detected_items", {})
         
-        # Save masks
         masks = seg_result.get("masks", {})
         if masks:
             saved_masks = segmenter.save_masks(masks, masks_dir)
             result["masks"] = saved_masks
         
-        # Update MongoDB
         mongo.update_job(job_id, {
             "detected_clothing": result["detected_clothing"],
             "attributes": result["detected_items"],
@@ -98,10 +78,9 @@ async def run_pipeline(
         for cat in ["top", "bottom", "outerwear", "shoes"]:
             result["detected_items"][cat] = {"present": False}
     
-    # ================================================
-    # STEP 2: Check Cache
-    # ================================================
+    # Check Cache
     cache_key = None
+    tokens, cost_usd = 0, 0.0
     
     if cache_manager.enabled:
         cache_key = get_cache_key(
@@ -124,23 +103,23 @@ async def run_pipeline(
             
             _copy_cached_renders(cached_response.get("_render_dir"), renders_dir, len(result["outfits"]))
             
-            # Update MongoDB with cached data
             mongo.update_job(job_id, {
                 "outfits": result["outfits"],
                 "cached": True,
-                "provider_used": active_provider or "cached",
+                "provider_used": "cached",
                 "status": "completed",
                 "assets.renders": [f"/ai/assets/jobs/{job_id}/renders/outfit_{i}.png" for i in range(1, len(result["outfits"]) + 1)]
             })
             
-            result["processing_time_ms"] = int((time.time() - start_time) * 1000)
+            latency_ms = int((time.time() - start_time) * 1000)
+            result["processing_time_ms"] = latency_ms
+            
+            # Log and track metrics
+            _track_request(job_id, "cached", True, latency_ms, "success", 0, 0.0)
+            
             return result
     
-    # ================================================
-    # STEP 3: LLM Outfit Generation
-    # ================================================
-    logger.info(f"[{job_id}] Generating outfits with LLM...")
-    
+    # LLM Generation
     try:
         outfits = await llm_router.plan_outfits(
             detected_items=result["detected_items"],
@@ -149,25 +128,33 @@ async def run_pipeline(
         )
         result["outfits"] = outfits
         
-        # Update MongoDB
+        # Estimate cost
+        tokens, cost_usd = estimate_cost(active_provider or "openai")
+        result["cost"] = {
+            "provider": active_provider,
+            "tokens": tokens,
+            "estimated_usd": cost_usd
+        }
+        
         mongo.update_job(job_id, {
             "outfits": outfits,
-            "provider_used": active_provider or "unknown"
+            "provider_used": active_provider or "unknown",
+            "cost": result["cost"]
         })
         
     except Exception as e:
         logger.error(f"LLM failed: {e}")
         result["error"] = str(e)
         result["status"] = "failed"
+        
+        latency_ms = int((time.time() - start_time) * 1000)
+        _track_request(job_id, active_provider, False, latency_ms, "fail", 0, 0.0, str(e))
+        
         mongo.update_job(job_id, {"status": "failed", "error": str(e)})
         return result
     
-    # ================================================
-    # STEP 4: Try-On Rendering
-    # ================================================
+    # Try-On Rendering
     if result["outfits"]:
-        logger.info(f"[{job_id}] Rendering try-on images...")
-        
         try:
             from ai_service.renderer.tryon import render_all_outfits
             
@@ -188,26 +175,35 @@ async def run_pipeline(
                     outfit["tryon_method"] = "inpainting"
                     render_urls.append(url)
             
-            # Update MongoDB
             mongo.update_job(job_id, {"assets.renders": render_urls})
             
         except Exception as e:
             logger.error(f"Rendering failed: {e}")
             _create_fallback_renders(image_path, renders_dir, result)
     
-    # ================================================
-    # STEP 5: Save to Cache & Finalize
-    # ================================================
+    # Save to Cache & Finalize
     if cache_manager.enabled and cache_key and result["outfits"]:
         cache_manager.set(cache_key, {"outfits": result["outfits"], "_render_dir": renders_dir})
     
-    # Mark job complete in MongoDB
     mongo.update_job(job_id, {"status": "completed", "cached": False})
     
-    result["processing_time_ms"] = int((time.time() - start_time) * 1000)
-    logger.info(f"[{job_id}] Pipeline complete in {result['processing_time_ms']}ms")
+    latency_ms = int((time.time() - start_time) * 1000)
+    result["processing_time_ms"] = latency_ms
+    
+    # Log and track metrics
+    _track_request(job_id, active_provider, False, latency_ms, "success", tokens, cost_usd)
+    
+    logger.info(f"[{job_id}] Pipeline complete in {latency_ms}ms (cost: ${cost_usd:.4f})")
     
     return result
+
+
+def _track_request(job_id: str, provider: str, cache_hit: bool, latency_ms: int, status: str, tokens: int, cost_usd: float, error: str = None):
+    """Log and track request metrics."""
+    if is_logging_enabled():
+        log_request(job_id, provider or "unknown", cache_hit, latency_ms, status, error, tokens, cost_usd)
+    
+    increment_request(provider or "unknown", cache_hit, tokens, cost_usd, error is not None)
 
 
 def _create_fallback_renders(image_path: str, renders_dir: str, result: Dict):

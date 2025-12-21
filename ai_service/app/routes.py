@@ -1,6 +1,6 @@
 """
-API Routes for AuraProject AI Service v1.4.3
-MongoDB persistence + Caching + Hybrid LLM + Try-On.
+API Routes for AuraProject AI Service v1.5.0
+With /metrics endpoint and enhanced /health.
 """
 import logging
 from typing import Optional
@@ -12,6 +12,7 @@ from ai_service.core.orchestrator import run_pipeline
 from ai_service.config import get_provider_status, get_settings
 from ai_service.cache import cache_manager
 from ai_service.db import mongo
+from ai_service.observability import get_metrics, is_logging_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,15 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint with all service statuses."""
+    """Health check with observability info."""
     provider_status = get_provider_status()
     cache_status = cache_manager.get_status()
     mongo_status = mongo.health_check()
+    metrics = get_metrics()
     
     return {
         "status": "ok",
-        "version": "1.4.3",
+        "version": "1.5.0",
         "llm": {
             "enabled": provider_status["enabled"],
             "primary": provider_status["primary"],
@@ -37,8 +39,21 @@ async def health_check():
         },
         "cache": cache_status,
         "mongo": mongo_status,
-        "features": ["segmentation", "attributes", "hybrid_llm", "tryon", "cache", "mongodb"]
+        "observability": {
+            "logging_enabled": is_logging_enabled(),
+            "total_requests": metrics["total_requests"],
+            "cache_hit_ratio": metrics["cache_hit_ratio"],
+            "total_cost_usd": metrics["total_cost_usd"]
+        },
+        "features": ["segmentation", "attributes", "hybrid_llm", "tryon", "cache", "mongodb", "observability"]
     }
+
+
+@router.get("/metrics")
+async def get_metrics_endpoint():
+    """Get detailed metrics for monitoring."""
+    metrics = get_metrics()
+    return JSONResponse(content=metrics)
 
 
 @router.post("/ai/outfit")
@@ -47,9 +62,9 @@ async def create_outfit(
     user_note: Optional[str] = Form(None, description="Optional notes")
 ):
     """
-    Generate 5 outfit recommendations with MongoDB persistence.
+    Generate 5 outfit recommendations.
     
-    v1.4.3: Jobs are persisted to MongoDB and survive server restarts.
+    v1.5.0: Includes cost tracking and request logging.
     """
     try:
         job_id = storage.create_job()
@@ -72,8 +87,9 @@ async def create_outfit(
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
             "cache_hit": result.get("cache_hit", False),
+            "cost": result.get("cost"),
             "status": result.get("status", "completed"),
-            "note": "v1.4.3 - job persisted to MongoDB"
+            "note": "v1.5.0 - observability & production readiness"
         }
         
         if result.get("error"):
@@ -88,11 +104,7 @@ async def create_outfit(
 
 @router.get("/ai/jobs/{job_id}")
 async def get_job(job_id: str):
-    """
-    Get a persisted job by ID from MongoDB.
-    
-    Returns the full job document including outfits, renders, and status.
-    """
+    """Get a persisted job by ID."""
     job = mongo.get_job(job_id)
     
     if job is None:
