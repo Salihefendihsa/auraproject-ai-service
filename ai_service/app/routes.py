@@ -1,6 +1,6 @@
 """
-API Routes for AuraProject AI Service v1.4.1
-Config-based provider management + Hybrid LLM + Try-On.
+API Routes for AuraProject AI Service v1.4.2
+Caching + Config + Hybrid LLM + Try-On.
 """
 import logging
 from typing import Optional
@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from ai_service.core.storage import storage
 from ai_service.core.orchestrator import run_pipeline
 from ai_service.config import get_provider_status, get_settings
+from ai_service.cache import cache_manager
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +19,14 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint with provider configuration status."""
+    """Health check endpoint with provider and cache status."""
     settings = get_settings()
     provider_status = get_provider_status()
+    cache_status = cache_manager.get_status()
     
     return {
         "status": "ok",
-        "version": "1.4.1",
+        "version": "1.4.2",
         "llm": {
             "enabled": provider_status["enabled"],
             "primary": provider_status["primary"],
@@ -33,7 +35,8 @@ async def health_check():
             "active_provider": provider_status["active_provider"],
             "daily_limit": provider_status["daily_limit"],
         },
-        "features": ["segmentation", "attributes", "hybrid_llm", "tryon", "config"]
+        "cache": cache_status,
+        "features": ["segmentation", "attributes", "hybrid_llm", "tryon", "config", "cache"]
     }
 
 
@@ -45,10 +48,10 @@ async def create_outfit(
     """
     Generate 5 outfit recommendations with try-on renders.
     
-    v1.4.1 Features:
-    - Config-based provider management
-    - Automatic fallback to secondary provider
-    - Respects AURA_LLM_ENABLED and priority settings
+    v1.4.2 Features:
+    - Request-level caching to reduce LLM costs
+    - Cache based on image hash + attributes + provider
+    - 24-hour TTL by default
     """
     try:
         # Create job
@@ -60,7 +63,7 @@ async def create_outfit(
         # Save image
         image_path = storage.save_input_image(job_id, image.file)
         
-        # Run pipeline
+        # Run pipeline (with caching)
         result = await run_pipeline(
             job_id=job_id,
             image_path=str(image_path),
@@ -81,8 +84,9 @@ async def create_outfit(
             },
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
+            "cache_hit": result.get("cache_hit", False),
             "status": result.get("status", "completed"),
-            "note": "v1.4.1 - config-based provider management"
+            "note": "v1.4.2 - caching enabled for cost reduction"
         }
         
         if result.get("error"):

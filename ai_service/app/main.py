@@ -1,6 +1,6 @@
 """
-AuraProject AI Service v1.4.1
-Config-based provider management + Hybrid LLM + Try-On.
+AuraProject AI Service v1.4.2
+Caching + Config + Hybrid LLM + Try-On.
 """
 import logging
 from contextlib import asynccontextmanager
@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from ai_service.app.routes import router
 from ai_service.core.storage import storage
 from ai_service.config import get_settings, get_provider_status, validate_provider_config
+from ai_service.cache import cache_manager
 
 # Configure logging
 logging.basicConfig(
@@ -23,39 +24,26 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("=" * 50)
-    logger.info("AuraProject AI Service v1.4.1 Starting...")
-    logger.info("Features: Config + Hybrid LLM + Segmentation + Try-On")
+    logger.info("AuraProject AI Service v1.4.2 Starting...")
+    logger.info("Features: Cache + Config + Hybrid LLM + Try-On")
     logger.info("=" * 50)
     
     # Initialize storage
     storage.ensure_directories()
     
-    # Load and display settings
+    # Load settings
     settings = get_settings()
     provider_status = get_provider_status()
+    cache_status = cache_manager.get_status()
     
+    # Log LLM status
     logger.info(f"LLM Enabled: {settings.llm_enabled}")
-    logger.info(f"Primary Provider: {settings.llm_primary}")
-    logger.info(f"Secondary Provider: {settings.llm_secondary}")
-    logger.info(f"Daily Limit: {settings.llm_daily_limit}")
+    logger.info(f"Active Provider: {provider_status.get('active_provider', 'none')}")
     
-    # Check provider availability
-    if provider_status["availability"].get("openai"):
-        logger.info("✓ OpenAI configured")
-    else:
-        logger.warning("⚠ OpenAI not configured")
-    
-    if provider_status["availability"].get("gemini"):
-        logger.info("✓ Gemini configured")
-    else:
-        logger.info("ℹ Gemini not configured (optional)")
-    
-    # Log active provider
-    active = provider_status.get("active_provider")
-    if active:
-        logger.info(f"✓ Active provider: {active}")
-    else:
-        logger.warning("⚠ No active provider - outfit planning will fail")
+    # Log cache status
+    logger.info(f"Cache Enabled: {cache_status['enabled']}")
+    logger.info(f"Cache TTL: {cache_status['ttl_minutes']} minutes")
+    logger.info(f"Cache Entries: {cache_status['entries']}")
     
     # Log warnings
     warnings = validate_provider_config()
@@ -73,8 +61,8 @@ async def lifespan(app: FastAPI):
 # Create app
 app = FastAPI(
     title="AuraProject AI Service",
-    description="Config-based LLM Management + Hybrid LLM + Try-On",
-    version="1.4.1",
+    description="Caching + Config + Hybrid LLM + Try-On",
+    version="1.4.2",
     lifespan=lifespan
 )
 
@@ -95,7 +83,7 @@ async def root():
     """Root endpoint."""
     return {
         "service": "AuraProject AI Service",
-        "version": "1.4.1",
-        "features": ["config", "segmentation", "attributes", "hybrid_llm", "virtual_tryon"],
+        "version": "1.4.2",
+        "features": ["cache", "config", "segmentation", "attributes", "hybrid_llm", "virtual_tryon"],
         "docs": "/docs"
     }
