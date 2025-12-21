@@ -1,4 +1,4 @@
-# AuraProject AI Service v1.2.0 - Dependencies
+# AuraProject AI Service v1.3.0 - Dependencies
 
 # Web Framework
 fastapi>=0.104.0
@@ -10,15 +10,18 @@ pydantic>=2.5.0
 pillow>=10.1.0
 numpy>=1.24.0
 
-# LLM
+# LLM - OpenAI (primary)
 openai>=1.6.0
 httpx>=0.25.0
 
-# Segmentation & Attributes (SegFormer, CLIP)
+# LLM - Gemini (advisor)
+google-generativeai>=0.3.0
+
+# Segmentation & Attributes
 torch>=2.0.0
 torchvision>=0.15.0
 transformers>=4.35.0
 
-# Virtual Try-On (SD Inpainting)
+# Virtual Try-On
 diffusers>=0.24.0
 accelerate>=0.25.0

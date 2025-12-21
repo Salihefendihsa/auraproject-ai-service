@@ -1,71 +1,81 @@
-# AuraProject AI Service v1.2.0
+# AuraProject AI Service v1.3.0
 
-Virtual try-on with Stable Diffusion Inpainting.
+Hybrid LLM brain with OpenAI + Gemini.
 
 ## Features
 
 - **Segmentation**: SegFormer clothing detection
 - **Attributes**: CLIP type/color/style extraction
-- **LLM Planning**: OpenAI outfit recommendations
-- **Virtual Try-On**: SD Inpainting for suggested items
+- **Hybrid LLM**: OpenAI (planner) + Gemini (advisor)
+- **Virtual Try-On**: SD Inpainting rendering
+
+## Hybrid LLM Logic
+
+```
+┌─────────────────────────────────────────┐
+│           HYBRID LLM BRAIN              │
+├─────────────────────────────────────────┤
+│  1. Gemini (optional, advisory)         │
+│     → Analyzes trends & context         │
+│     → Returns 1-2 sentence advice       │
+│                                         │
+│  2. OpenAI (required, primary)          │
+│     → Receives Gemini context           │
+│     → Generates 5 complete outfits      │
+└─────────────────────────────────────────┘
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | **Yes** | Primary planner |
+| `GEMINI_API_KEY` | No | Style advisor |
 
 ## Quick Start
 
 ```powershell
-# 1. Setup
-.\setup.ps1
-
-# 2. Set API key
+# Required
 $env:OPENAI_API_KEY = "sk-..."
 
-# 3. Run
+# Optional (enhances recommendations)
+$env:GEMINI_API_KEY = "AIza..."
+
+# Run
 .\run.ps1
 ```
 
-## First Run
+## Fallback Behavior
 
-Downloads models (~3GB total):
-- SegFormer (~300MB)
-- CLIP models (~1GB)  
-- SD Inpainting (~2GB)
+| Scenario | Behavior |
+|----------|----------|
+| Gemini fails | Continue with OpenAI only |
+| Gemini not configured | Use OpenAI only |
+| OpenAI fails | Return error (primary required) |
 
-## Performance
-
-| Device | Segmentation | Try-On (5 outfits) |
-|--------|--------------|-------------------|
-| GPU | ~3s | ~30s |
-| CPU | ~15s | ~5-10min |
-
-## API Response
+## Health Check Response
 
 ```json
 {
-  "job_id": "...",
-  "detected_items": {...},
-  "outfits": [
-    {
-      "rank": 1,
-      "items": {...},
-      "render_url": "/ai/assets/jobs/{id}/renders/outfit_1.png",
-      "tryon_method": "inpainting"
-    }
-  ],
-  "note": "v1.2.0 - segmentation + attributes + LLM + try-on"
+  "status": "ok",
+  "version": "1.3.0",
+  "llm": {
+    "openai": true,
+    "gemini": true
+  }
 }
 ```
 
-## Models Used
+## Project Structure
 
-| Model | Purpose |
-|-------|---------|
-| mattmdjaga/segformer_b2_clothes | Segmentation |
-| openai/clip-vit-large-patch14 | Type + color |
-| patrickjohncyh/fashion-clip | Style |
-| runwayml/stable-diffusion-inpainting | Try-on |
-
-## Fallback Behavior
-
-If try-on fails (GPU/model errors):
-- Input image is copied as render output
-- API still returns 200 OK
-- `tryon_method` = "fallback"
+```
+ai_service/
+├── app/
+├── core/
+├── llm/              ← NEW
+│   ├── openai_client.py
+│   ├── gemini_client.py
+│   └── router.py
+├── renderer/
+└── vision/
+```

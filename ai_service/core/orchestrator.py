@@ -1,45 +1,16 @@
 """
-Pipeline Orchestrator (v1.2.0)
-Coordinates segmentation + attributes + LLM + try-on rendering.
+Pipeline Orchestrator (v1.3.0)
+Coordinates segmentation + attributes + hybrid LLM + try-on rendering.
 """
-import os
-import json
 import time
 import logging
 from typing import Dict, Any, Optional
 
 from ai_service.core.storage import storage
 from ai_service.vision.segmenter import segmenter
+from ai_service.llm import router as llm_router
 
 logger = logging.getLogger(__name__)
-
-
-SYSTEM_PROMPT = """You are a fashion stylist AI. Generate outfit recommendations.
-
-RULES:
-1. Return EXACTLY 5 outfits as JSON
-2. Each outfit has: top, bottom, outerwear, shoes
-3. If user already has an item (provided below), keep it with source="user"
-4. For missing items, suggest new ones with source="suggested"
-5. Match the user's detected style and colors where appropriate
-6. Return ONLY valid JSON, no markdown
-
-OUTPUT FORMAT:
-{
-  "outfits": [
-    {
-      "rank": 1,
-      "style_tag": "style name",
-      "items": {
-        "top": {"name": "...", "color": "...", "source": "user or suggested"},
-        "bottom": {"name": "...", "color": "...", "source": "user or suggested"},
-        "outerwear": {"name": "...", "color": "...", "source": "user or suggested"},
-        "shoes": {"name": "...", "color": "...", "source": "user or suggested"}
-      },
-      "explanation": "Brief explanation"
-    }
-  ]
-}"""
 
 
 async def run_pipeline(
@@ -50,10 +21,10 @@ async def run_pipeline(
     """
     Run the full analysis and rendering pipeline.
     
-    Steps (v1.2.0):
+    Steps (v1.3.0):
     1. Run segmentation with attribute extraction
     2. Save masks
-    3. Call LLM with detected items context
+    3. Call hybrid LLM (Gemini context + OpenAI planning)
     4. Render try-on images for each outfit
     5. Return complete result with render URLs
     """
@@ -110,14 +81,15 @@ async def run_pipeline(
             result["detected_items"][cat] = {"present": False}
     
     # ================================================
-    # STEP 2: LLM Outfit Generation
+    # STEP 2: Hybrid LLM Outfit Generation
     # ================================================
-    logger.info(f"[{job_id}] Generating outfits with LLM...")
+    logger.info(f"[{job_id}] Generating outfits with hybrid LLM...")
     
     try:
-        outfits = await generate_outfits_llm(
+        outfits = await llm_router.plan_outfits(
             detected_items=result["detected_items"],
-            user_note=user_note
+            user_note=user_note,
+            season_hint=None  # Could extract from user_note in future
         )
         result["outfits"] = outfits
         logger.info(f"[{job_id}] Generated {len(outfits)} outfits")
@@ -191,66 +163,3 @@ def _create_fallback_renders(image_path: str, renders_dir: str, result: Dict):
         logger.info(f"Created {len(result['outfits'])} fallback renders")
     except Exception as e:
         logger.error(f"Fallback render creation failed: {e}")
-
-
-async def generate_outfits_llm(
-    detected_items: Dict[str, Any],
-    user_note: Optional[str] = None
-) -> list:
-    """Generate 5 outfits using OpenAI LLM with detected item context."""
-    
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY not set")
-    
-    # Build context from detected items
-    detected_context = []
-    missing_parts = []
-    
-    for category, item in detected_items.items():
-        if item.get("present"):
-            item_type = item.get("type", "unknown")
-            item_color = item.get("color", "unknown")
-            item_style = item.get("style", "casual")
-            detected_context.append(
-                f"{category}: {item_color} {item_type} ({item_style} style)"
-            )
-        else:
-            missing_parts.append(category)
-    
-    user_prompt = f"""Generate 5 complete outfits.
-
-DETECTED on user (keep these, mark source="user"):
-{chr(10).join(detected_context) if detected_context else 'None detected'}
-
-MISSING (must suggest, mark source="suggested"):
-{', '.join(missing_parts) if missing_parts else 'None missing'}
-
-{f'User note: {user_note}' if user_note else ''}
-
-Return ONLY valid JSON with exactly 5 outfits."""
-
-    try:
-        from openai import AsyncOpenAI
-        
-        client = AsyncOpenAI(api_key=api_key)
-        
-        response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.7,
-            max_tokens=2500,
-            response_format={"type": "json_object"}
-        )
-        
-        content = response.choices[0].message.content
-        data = json.loads(content)
-        
-        return data.get("outfits", [])
-        
-    except Exception as e:
-        logger.error(f"OpenAI error: {e}")
-        raise

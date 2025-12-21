@@ -1,8 +1,7 @@
 """
-API Routes for AuraProject AI Service v1.2.0
-Segmentation + Attributes + LLM + Virtual Try-On.
+API Routes for AuraProject AI Service v1.3.0
+Hybrid LLM (OpenAI + Gemini) + Segmentation + Try-On.
 """
-import os
 import logging
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -10,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from ai_service.core.storage import storage
 from ai_service.core.orchestrator import run_pipeline
+from ai_service.llm import router as llm_router
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +18,14 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
-    """Health check endpoint."""
-    api_key = os.getenv("OPENAI_API_KEY")
+    """Health check endpoint with LLM provider status."""
+    llm_status = llm_router.get_provider_status()
+    
     return {
         "status": "ok",
-        "version": "1.2.0",
-        "llm_configured": bool(api_key),
-        "provider": "openai" if api_key else "none",
-        "features": ["segmentation", "attributes", "llm", "tryon"]
+        "version": "1.3.0",
+        "llm": llm_status,
+        "features": ["segmentation", "attributes", "hybrid_llm", "tryon"]
     }
 
 
@@ -37,10 +37,10 @@ async def create_outfit(
     """
     Generate 5 outfit recommendations with try-on renders.
     
-    v1.2.0 Features:
+    v1.3.0 Features:
     - Segments clothing from image
     - Extracts type, color, style for each item
-    - Uses LLM to generate 5 outfits
+    - Uses hybrid LLM (Gemini context + OpenAI planning)
     - Renders virtual try-on images using SD Inpainting
     """
     try:
@@ -75,7 +75,7 @@ async def create_outfit(
             "raw_labels": result.get("raw_labels", []),
             "outfits": result.get("outfits", []),
             "status": result.get("status", "completed"),
-            "note": "v1.2.0 - segmentation + attributes + LLM + try-on"
+            "note": "v1.3.0 - hybrid LLM (OpenAI + Gemini) + try-on"
         }
         
         if result.get("error"):
@@ -93,8 +93,6 @@ async def serve_asset(file_path: str):
     """
     Serve static files from job directories.
     Serves: input images, masks, and render outputs.
-    
-    Example: /ai/assets/jobs/{job_id}/renders/outfit_1.png
     """
     try:
         full_path = storage.get_file_path(file_path)
