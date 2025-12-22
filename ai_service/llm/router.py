@@ -218,9 +218,10 @@ Missing: {', '.join(missing_parts) if missing_parts else 'none'}
 {context_str}
 
 IMPORTANT:
+- Recommend currently trending fashion styles (e.g., quiet luxury, street heritage, monochrome minimal)
 - Consider the occasion/event when selecting formality level
 - Consider weather when recommending layers and fabric weight
-- Prioritize appropriateness over fashion-forward choices
+- Prioritize appropriateness while maintaining a "fashion-forward" look
 
 Return JSON format:
 {{"outfits": [

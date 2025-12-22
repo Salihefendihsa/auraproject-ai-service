@@ -1,22 +1,9 @@
-# Byte-compiled files
 __pycache__/
-*.py[cod]
-
-# Virtual environments
-.venv/
+*.pyc
 venv/
-
-# Environment files
 .env
-*.env
-
-# IDE
+data/
+mongo_data/
+logs/
 .vscode/
 .idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log

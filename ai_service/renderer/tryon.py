@@ -338,16 +338,19 @@ class TryOnRenderer:
             
             # Build prompt with discipline
             clothing_prompt = self._build_clothing_prompt(outfit)
-            full_prompt = f"{clothing_prompt}. {POSITIVE_PROMPT_BASE}"
+            # v2.8.0 Enhancement: High-fidelity texture and preservation tags
+            quality_tags = "highly detailed, 8k uhd, photorealistic, realistic fabric texture, intricate details, preservation of original person features"
+            full_prompt = f"{clothing_prompt}. {quality_tags}. {POSITIVE_PROMPT_BASE}"
             
             logger.info(f"Rendering at {resolution}x{resolution}: {clothing_prompt[:60]}...")
             
             # Configure inference steps based on device and resolution
             if num_inference_steps is None:
+                # v2.8.0: Increased steps for better quality (approximating VITON)
                 if self._device == "cpu":
-                    num_inference_steps = 15 if resolution <= 512 else 20
+                    num_inference_steps = 25 if resolution <= 512 else 35
                 else:
-                    num_inference_steps = 25 if resolution <= 512 else 30
+                    num_inference_steps = 40 if resolution <= 512 else 50
             
             # Run inpainting with quality settings
             import torch

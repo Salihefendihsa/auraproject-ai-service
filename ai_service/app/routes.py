@@ -204,7 +204,7 @@ async def create_outfit(
         # Input validation
         try:
             content, validated_image = await validate_image_upload(
-                image.file,
+                image,
                 image.content_type
             )
         except ValidationError as ve:
@@ -715,7 +715,7 @@ async def serve_asset(
     try:
         # Get base directory for assets
         settings = get_settings()
-        base_dir = Path(settings.data_dir) if hasattr(settings, 'data_dir') else storage.base_dir
+        base_dir = Path(settings.data_dir) if hasattr(settings, 'data_dir') else storage.base_data_dir
         
         # Sanitize path to prevent traversal
         try:

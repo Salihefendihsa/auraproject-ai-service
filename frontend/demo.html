@@ -544,9 +544,17 @@
                 if (value) {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'outfit-item';
+
+                    let displayValue = value;
+                    if (typeof value === 'object') {
+                        const name = value.name || '';
+                        const color = value.color || '';
+                        displayValue = color ? `${color} ${name}` : name;
+                    }
+
                     itemDiv.innerHTML = `
                         <span class="outfit-item-label">${key}</span>
-                        <span class="outfit-item-value">${value}</span>
+                        <span class="outfit-item-value">${displayValue}</span>
                     `;
                     outfitItems.appendChild(itemDiv);
                 }
