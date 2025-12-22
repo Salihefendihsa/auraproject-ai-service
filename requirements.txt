@@ -1,4 +1,4 @@
-# AuraProject AI Service v1.4.3 - Dependencies
+# AuraProject AI Service v2.4.0 - Dependencies
 
 # Web Framework
 fastapi>=0.104.0
@@ -9,6 +9,7 @@ pydantic>=2.5.0
 # Image Processing
 pillow>=10.1.0
 numpy>=1.24.0
+scipy>=1.11.0  # For morphological operations in mask processing
 
 # LLM
 openai>=1.6.0
@@ -26,3 +27,7 @@ accelerate>=0.25.0
 
 # Database
 pymongo>=4.6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA - Single Best Outfit Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            color: #e0e0e0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: #888;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .preview-container {
+            margin-top: 10px;
+            display: none;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+
+        select,
+        .text-input {
+            width: 100%;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .text-input {
+            cursor: text;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            margin-top: 10px;
+        }
+
+        .result-card {
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 25px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+            display: none;
+        }
+
+        .result-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+
+        .result-img {
+            width: 100%;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .result-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .result-confidence {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+
+        .result-why {
+            font-size: 1rem;
+            color: #bbb;
+            line-height: 1.6;
+        }
+
+        .outfit-items {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .outfit-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .outfit-item:last-child {
+            border-bottom: none;
+        }
+
+        .outfit-item-label {
+            color: #888;
+            text-transform: capitalize;
+        }
+
+        .outfit-item-value {
+            color: #fff;
+        }
+
+        .error {
+            background: rgba(255, 100, 100, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.3);
+            color: #ff9999;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.visible {
+            display: block;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .modal p {
+            color: #aaa;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .api-key-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2>🔑 Enter API Key</h2>
+            <p>
+                To use AURA, you need an API key.<br>
+                Create one with:
+                <code
+                    style="display:block; margin-top:10px; padding:10px; background:rgba(0,0,0,0.3); border-radius:8px; font-size:0.8rem;">
+                    curl.exe -X POST "http://localhost:8000/ai/users" -F "name=demo"
+                </code>
+            </p>
+            <div class="form-group">
+                <input type="text" id="apiKeyInput" class="text-input" placeholder="Paste your API key here">
+            </div>
+            <button id="saveApiKeyBtn" class="btn">Save & Continue</button>
+        </div>
+    </div>
+
+    <h1>AURA</h1>
+    <p class="subtitle">Single Best Outfit Mode • v2.7.0</p>
+
+    <div class="card">
+        <div id="apiKeyBadge" class="api-key-badge" style="display:none;">
+            🔑 API Key saved
+        </div>
+
+        <div class="form-group">
+            <label>Upload Your Photo</label>
+            <input type="file" id="imageInput" accept="image/*" class="file-input">
+            <div class="preview-container" id="previewContainer">
+                <img id="previewImg" class="preview-img" alt="Preview">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Select Event</label>
+            <select id="eventSelect">
+                <option value="casual">Casual</option>
+                <option value="business">Business</option>
+                <option value="date">Date Night</option>
+                <option value="party">Party</option>
+            </select>
+        </div>
+
+        <button id="generateBtn" class="btn">Generate Best Outfit</button>
+        <button id="changeKeyBtn" class="btn btn-secondary" style="display:none;">Change API Key</button>
+
+        <div id="errorBox" class="error"></div>
+
+        <div id="resultCard" class="result-card">
+            <img id="resultImg" class="result-img" alt="Try-on Result">
+            <h2 id="resultTitle" class="result-title"></h2>
+            <span id="resultConfidence" class="result-confidence"></span>
+            <p id="resultWhy" class="result-why"></p>
+            <div id="outfitItems" class="outfit-items"></div>
+        </div>
+    </div>
+
+    <p class="footer">Backend must be running at localhost:8000</p>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const STORAGE_KEY = 'AURA_API_KEY';
+
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+        const apiKeyBadge = document.getElementById('apiKeyBadge');
+        const changeKeyBtn = document.getElementById('changeKeyBtn');
+        const imageInput = document.getElementById('imageInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImg = document.getElementById('previewImg');
+        const eventSelect = document.getElementById('eventSelect');
+        const generateBtn = document.getElementById('generateBtn');
+        const errorBox = document.getElementById('errorBox');
+        const resultCard = document.getElementById('resultCard');
+        const resultImg = document.getElementById('resultImg');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultConfidence = document.getElementById('resultConfidence');
+        const resultWhy = document.getElementById('resultWhy');
+        const outfitItems = document.getElementById('outfitItems');
+
+        let selectedFile = null;
+
+        // Initialize - check for stored API key
+        function init() {
+            const storedKey = localStorage.getItem(STORAGE_KEY);
+            if (storedKey) {
+                showApiKeyBadge();
+            } else {
+                showApiKeyModal();
+            }
+        }
+
+        function showApiKeyModal() {
+            apiKeyModal.classList.remove('hidden');
+        }
+
+        function hideApiKeyModal() {
+            apiKeyModal.classList.add('hidden');
+        }
+
+        function showApiKeyBadge() {
+            apiKeyBadge.style.display = 'inline-block';
+            changeKeyBtn.style.display = 'block';
+        }
+
+        function getApiKey() {
+            return localStorage.getItem(STORAGE_KEY) || '';
+        }
+
+        // Save API key
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key.length < 5) {
+                alert('Please enter a valid API key');
+                return;
+            }
+            localStorage.setItem(STORAGE_KEY, key);
+            hideApiKeyModal();
+            showApiKeyBadge();
+        });
+
+        // Change API key
+        changeKeyBtn.addEventListener('click', () => {
+            apiKeyInput.value = '';
+            showApiKeyModal();
+        });
+
+        // File input change
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Generate button click
+        generateBtn.addEventListener('click', async () => {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                showApiKeyModal();
+                return;
+            }
+
+            if (!selectedFile) {
+                showError('Please select an image first.');
+                return;
+            }
+
+            hideError();
+            hideResult();
+            setLoading(true);
+
+            try {
+                const formData = new FormData();
+                formData.append('image', selectedFile);
+                formData.append('event', eventSelect.value);
+                formData.append('mode', 'single');
+
+                const response = await fetch(`${API_BASE}/ai/outfit`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': apiKey
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    if (response.status === 401 || response.status === 403) {
+                        showError('Invalid API key. Please update your key.');
+                        localStorage.removeItem(STORAGE_KEY);
+                        showApiKeyModal();
+                        return;
+                    }
+                    throw new Error(error.detail || 'Request failed');
+                }
+
+                const data = await response.json();
+                showResult(data);
+
+            } catch (err) {
+                showError(err.message || 'Failed to generate outfit');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        function setLoading(loading) {
+            generateBtn.disabled = loading;
+            generateBtn.innerHTML = loading
+                ? '<span class="loading-spinner"></span>Generating...'
+                : 'Generate Best Outfit';
+        }
+
+        function showError(message) {
+            errorBox.textContent = message;
+            errorBox.classList.add('visible');
+        }
+
+        function hideError() {
+            errorBox.classList.remove('visible');
+        }
+
+        function hideResult() {
+            resultCard.classList.remove('visible');
+        }
+
+        function showResult(data) {
+            // Set image
+            if (data.render_url) {
+                resultImg.src = API_BASE + data.render_url;
+                resultImg.style.display = 'block';
+            } else {
+                resultImg.style.display = 'none';
+            }
+
+            // Set title
+            resultTitle.textContent = data.title || 'Your Best Outfit';
+
+            // Set confidence
+            const confidence = Math.round((data.confidence || 0) * 100);
+            resultConfidence.textContent = `${confidence}% confidence`;
+
+            // Set explanation
+            resultWhy.textContent = data.why || '';
+
+            // Set outfit items
+            outfitItems.innerHTML = '';
+            const outfit = data.outfit || {};
+            for (const [key, value] of Object.entries(outfit)) {
+                if (value) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'outfit-item';
+                    itemDiv.innerHTML = `
+                        <span class="outfit-item-label">${key}</span>
+                        <span class="outfit-item-value">${value}</span>
+                    `;
+                    outfitItems.appendChild(itemDiv);
+                }
+            }
+
+            // Show with animation
+            setTimeout(() => {
+                resultCard.classList.add('visible');
+            }, 100);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+
+</html>

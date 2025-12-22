@@ -1,6 +1,6 @@
 """
-AuraProject AI Service v1.5.0
-Observability + Frontend + MongoDB + Cache + Hybrid LLM + Try-On.
+AuraProject AI Service v2.7.0
+Single Best Outfit Mode + ControlNet + Gemini 3 Pro Ready.
 """
 import logging
 from pathlib import Path
@@ -26,8 +26,8 @@ FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=" * 50)
-    logger.info("AuraProject AI Service v1.5.0 Starting...")
-    logger.info("Features: Observability + Frontend + MongoDB + Cache + LLM")
+    logger.info("AuraProject AI Service v2.7.0 Starting...")
+    logger.info("Features: Single-Mode + ControlNet + Gemini-3 + Self-Critique")
     logger.info("=" * 50)
     
     storage.ensure_directories()
@@ -54,8 +54,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AuraProject AI Service",
-    description="Observability + Frontend + MongoDB + Cache + Hybrid LLM + Try-On",
-    version="1.5.0",
+    description="Single Best Outfit Mode + ControlNet + Gemini 3 Pro Ready",
+    version="2.7.0",
     lifespan=lifespan
 )
 

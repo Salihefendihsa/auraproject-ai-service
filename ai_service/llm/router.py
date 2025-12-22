@@ -1,6 +1,6 @@
 """
-LLM Router (v1.4.1)
-Orchestrates the hybrid LLM brain with config-based provider management.
+LLM Router (v2.3.0)
+Orchestrates the hybrid LLM brain with event/weather/wardrobe context.
 """
 import logging
 from typing import Dict, Any, Optional
@@ -15,26 +15,72 @@ from ai_service.config import (
 
 logger = logging.getLogger(__name__)
 
+# Event context descriptions for LLM
+EVENT_CONTEXTS = {
+    "business": "professional business meeting or interview - formal, conservative colors",
+    "casual": "everyday casual outing - relaxed, comfortable",
+    "sport": "athletic activity or gym - activewear, breathable",
+    "wedding": "wedding event - elegant, formal, avoid white",
+    "party": "party or night out - stylish, trendy, statement pieces",
+    "date": "romantic date - attractive, put-together, confident"
+}
+
+
+def build_context_prompt(
+    event: Optional[str] = None,
+    weather_context: Optional[str] = None,
+    user_note: Optional[str] = None,
+    wardrobe_context: Optional[str] = None
+) -> str:
+    """
+    Build context string for LLM prompt.
+    
+    Args:
+        event: Event type (business, casual, etc.)
+        weather_context: Weather info string
+        user_note: User's custom note
+        wardrobe_context: User's wardrobe items context (v2.3)
+    
+    Returns:
+        Context string for LLM
+    """
+    parts = []
+    
+    if wardrobe_context:
+        parts.append(f"PRIORITIZE USER'S WARDROBE: {wardrobe_context}")
+    
+    if event and event in EVENT_CONTEXTS:
+        parts.append(f"Event context: {EVENT_CONTEXTS[event]}")
+    
+    if weather_context:
+        parts.append(weather_context)
+    
+    if user_note:
+        parts.append(f"User preference: {user_note}")
+    
+    return " | ".join(parts) if parts else ""
+
 
 async def plan_outfits(
     detected_items: Dict[str, Any],
     user_note: Optional[str] = None,
-    season_hint: Optional[str] = None
+    season_hint: Optional[str] = None,
+    event: Optional[str] = None,
+    weather_context: Optional[str] = None,
+    wardrobe_context: Optional[str] = None
 ) -> list:
     """
-    Plan outfits using hybrid LLM approach with config-based routing.
+    Plan outfits using hybrid LLM approach with full context.
     
-    Flow:
-    1. Check if LLM is enabled
-    2. Get active provider from config
-    3. If Gemini available and secondary, get style context
-    4. Call primary provider for outfit planning
-    5. Fallback to secondary if primary fails
+    v2.3.0: Added wardrobe context for user-owned items preference.
     
     Args:
         detected_items: Dict of detected clothing
         user_note: Optional user notes
         season_hint: Optional season for Gemini
+        event: Event type (business, casual, etc.)
+        weather_context: Weather context string
+        wardrobe_context: User's wardrobe items (v2.3)
         
     Returns:
         List of 5 outfit dicts
@@ -50,6 +96,9 @@ async def plan_outfits(
     
     if not active:
         raise ValueError("No LLM provider available - check API keys")
+    
+    # Build combined context with wardrobe priority
+    combined_context = build_context_prompt(event, weather_context, user_note, wardrobe_context)
     
     style_context = None
     
@@ -69,19 +118,31 @@ async def plan_outfits(
     else:
         logger.info("Gemini not configured - skipping style context")
     
+    # Combine style context with event/weather context
+    if style_context and combined_context:
+        full_context = f"{style_context} | {combined_context}"
+    elif combined_context:
+        full_context = combined_context
+    else:
+        full_context = style_context
+    
     # Step 2: Call primary provider
     logger.info(f"Using primary provider: {active}")
+    if event:
+        logger.info(f"Event context: {event}")
+    if weather_context:
+        logger.info(f"Weather context: {weather_context[:50]}...")
     
     try:
         if active == "openai":
             outfits = await openai_client.plan_outfits(
                 detected_items=detected_items,
-                user_note=user_note,
-                style_context=style_context
+                user_note=combined_context or user_note,
+                style_context=full_context
             )
         elif active == "gemini":
-            # Use Gemini as primary planner (without context injection)
-            outfits = await _plan_with_gemini(detected_items, user_note)
+            # Use Gemini as primary planner
+            outfits = await _plan_with_gemini(detected_items, combined_context or user_note, event, weather_context)
         else:
             raise ValueError(f"Unknown provider: {active}")
         
@@ -97,11 +158,11 @@ async def plan_outfits(
                 if fallback == "openai":
                     return await openai_client.plan_outfits(
                         detected_items=detected_items,
-                        user_note=user_note,
-                        style_context=style_context
+                        user_note=combined_context or user_note,
+                        style_context=full_context
                     )
                 elif fallback == "gemini":
-                    return await _plan_with_gemini(detected_items, user_note)
+                    return await _plan_with_gemini(detected_items, combined_context or user_note, event, weather_context)
             except Exception as fallback_error:
                 logger.error(f"Fallback provider also failed: {fallback_error}")
         
@@ -110,9 +171,11 @@ async def plan_outfits(
 
 async def _plan_with_gemini(
     detected_items: Dict[str, Any],
-    user_note: Optional[str] = None
+    user_note: Optional[str] = None,
+    event: Optional[str] = None,
+    weather_context: Optional[str] = None
 ) -> list:
-    """Use Gemini as primary outfit planner (basic implementation)."""
+    """Use Gemini as primary outfit planner with event/weather support."""
     import os
     import json
     
@@ -136,11 +199,28 @@ async def _plan_with_gemini(
         else:
             missing_parts.append(category)
     
+    # Build event/weather context for prompt
+    context_parts = []
+    if event and event in EVENT_CONTEXTS:
+        context_parts.append(f"Occasion: {EVENT_CONTEXTS[event]}")
+    if weather_context:
+        context_parts.append(weather_context)
+    if user_note:
+        context_parts.append(f"User preference: {user_note}")
+    
+    context_str = "\n".join(context_parts) if context_parts else ""
+    
     prompt = f"""Generate exactly 5 outfit recommendations as JSON.
 
 User has: {', '.join(detected_context) if detected_context else 'no items detected'}
 Missing: {', '.join(missing_parts) if missing_parts else 'none'}
-{f'Note: {user_note}' if user_note else ''}
+
+{context_str}
+
+IMPORTANT:
+- Consider the occasion/event when selecting formality level
+- Consider weather when recommending layers and fabric weight
+- Prioritize appropriateness over fashion-forward choices
 
 Return JSON format:
 {{"outfits": [
@@ -149,7 +229,7 @@ Return JSON format:
     "bottom": {{"name": "...", "color": "...", "source": "user or suggested"}},
     "outerwear": {{"name": "...", "color": "...", "source": "user or suggested"}},
     "shoes": {{"name": "...", "color": "...", "source": "user or suggested"}}
-  }}, "explanation": "..."}}
+  }}, "explanation": "...", "occasion_fit": "how this suits the occasion"}}
 ]}}
 
 Return ONLY valid JSON."""

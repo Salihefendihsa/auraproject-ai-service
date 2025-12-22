@@ -1,104 +1,130 @@
-# AuraProject AI Service v1.5.0
+# AuraProject AI Service v2.7.0
 
-Production-ready AI outfit recommendation with observability.
+Production-ready AI outfit recommendation with **Single Best Outfit Mode**.
 
-## Features
+## Version Highlights
 
-- **Observability**: Request logging, metrics, cost tracking
-- **Frontend**: Upload → Generate → View Try-On
-- **MongoDB**: Persistent job storage
-- **Caching**: Disk-based with 24h TTL
-- **Hybrid LLM**: OpenAI + Gemini
-- **Try-On**: SD Inpainting
+| Version | Features |
+|---------|----------|
+| v2.0 | Security: validation, auth, rate limit |
+| v2.1 | Context: event, weather, history |
+| v2.2 | Try-On: mask quality, prompts, 2-stage |
+| v2.3 | Wardrobe: upload, pHash, LLM context |
+| v2.4 | Self-Critique: Gemini judge + OpenAI regen |
+| v2.5 | LLM Config: GPT-5 & Gemini-3 ready |
+| v2.6 | ControlNet: Pose locking for try-on |
+| **v2.7** | **Single Best Outfit Mode** |
+
+---
 
 ## Quick Start
 
+### 1. Start Backend
+
 ```powershell
-# 1. Start MongoDB
-docker run -d -p 27017:27017 --name mongo mongo:7
-
-# 2. Set API key
-$env:OPENAI_API_KEY = "sk-..."
-
-# 3. Run
-.\run.ps1
-
-# 4. Open http://localhost:8000
+cd "c:\Users\SALİH\OneDrive\Desktop\AuraProject AI Service"
+.\venv\Scripts\python.exe -m uvicorn ai_service.app.main:app --reload --port 8000
 ```
 
-## Observability & Metrics
+### 2. Create User & Get API Key
 
-### Request Logging
-
-Requests are logged to `logs/requests.log`:
-```json
-{"timestamp":"2024-01-01T12:00:00Z","job_id":"abc","provider":"openai","cache_hit":false,"latency_ms":5000,"status":"success","tokens":1500,"cost_usd":0.003}
+**PowerShell (curl.exe):**
+```powershell
+curl.exe -X POST "http://localhost:8000/ai/users" -F "name=demo"
 ```
 
-### Metrics Endpoint
+**PowerShell (Invoke-RestMethod):**
+```powershell
+$body = @{ name = "demo" }
+Invoke-RestMethod -Uri "http://localhost:8000/ai/users" -Method POST -Body $body
+```
 
-`GET /metrics` returns:
+Response includes your `api_key` - save it for requests.
+
+### 3. Check Health
+
+```powershell
+curl.exe http://localhost:8000/health
+```
+
+---
+
+## Single Best Outfit Mode (v2.7)
+
+Returns ONLY the highest-scored outfit with try-on render.
+
+**PowerShell (curl.exe):**
+```powershell
+curl.exe -X POST "http://localhost:8000/ai/outfit" `
+  -H "X-API-Key: YOUR_API_KEY" `
+  -F "image=@photo.jpg" `
+  -F "event=business" `
+  -F "mode=single"
+```
+
+**PowerShell (Invoke-RestMethod):**
+```powershell
+$headers = @{ "X-API-Key" = "YOUR_API_KEY" }
+$form = @{
+    image = Get-Item -Path "photo.jpg"
+    event = "business"
+    mode = "single"
+}
+Invoke-RestMethod -Uri "http://localhost:8000/ai/outfit" -Method POST -Headers $headers -Form $form
+```
+
+---
+
+## Full Mode (Default)
+
+Returns 5 outfits with try-on renders.
+
+```powershell
+curl.exe -X POST "http://localhost:8000/ai/outfit" `
+  -H "X-API-Key: YOUR_API_KEY" `
+  -F "image=@photo.jpg" `
+  -F "mode=full"
+```
+
+---
+
+## Demo Frontend
+
+Open `frontend/demo.html` in browser. Enter your API key when prompted.
+
+---
+
+## LLM Configuration
+
+```powershell
+# Switch planner to Gemini 3 Pro
+$env:AURA_LLM_PROVIDER = "gemini"
+$env:AURA_LLM_MODEL = "gemini-3-pro"
+
+# Switch judge to Gemini 3 Pro
+$env:AURA_JUDGE_PROVIDER = "gemini"
+$env:AURA_JUDGE_MODEL = "gemini-3-pro"
+```
+
+---
+
+## ControlNet Pose Lock
+
+```powershell
+$env:AURA_CONTROLNET_ENABLED = "true"
+$env:AURA_CONTROLNET_TYPE = "pose"
+```
+
+Requires GPU. Falls back to SD Inpainting on CPU.
+
+---
+
+## Health Response (v2.7.0)
+
 ```json
 {
-  "total_requests": 10,
-  "cache_hits": 3,
-  "cache_misses": 7,
-  "cache_hit_ratio": 0.3,
-  "total_tokens": 10500,
-  "total_cost_usd": 0.021,
-  "requests_by_provider": {"openai": 7, "cached": 3}
+  "version": "2.7.0",
+  "product_mode_support": ["full", "single"],
+  "controlnet": { "enabled": false, "type": "pose" }
 }
-```
-
-### Cost Tracking
-
-Each job stores cost info:
-```json
-"cost": {
-  "provider": "openai",
-  "tokens": 1500,
-  "estimated_usd": 0.003
-}
-```
-
-### Health Endpoint
-
-`GET /health` now includes:
-```json
-"observability": {
-  "logging_enabled": true,
-  "total_requests": 10,
-  "cache_hit_ratio": 0.3,
-  "total_cost_usd": 0.021
-}
-```
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_API_KEY` | - | Required |
-| `GEMINI_API_KEY` | - | Optional |
-| `MONGO_URI` | `mongodb://localhost:27017` | MongoDB |
-| `AURA_LOGGING_ENABLED` | `true` | Request logging |
-| `AURA_CACHE_ENABLED` | `true` | Cache |
-
-## Project Structure
-
-```
-ai_service/
-├── frontend/
-├── observability/    ← NEW
-│   ├── logger.py
-│   └── metrics.py
-├── app/
-├── cache/
-├── config/
-├── core/
-├── db/
-├── llm/
-├── renderer/
-└── vision/
-logs/
-└── requests.log
 ```
