@@ -1,0 +1,281 @@
+{
+    "brand": "Zara",
+    "season": "fall_winter",
+    "year": 2024,
+    "description": "Professional outfit composition rules derived from Zara Fall/Winter 2024 lookbook. These rules influence outfit ranking without overriding user seed preferences.",
+    "rules": [
+        {
+            "rule_id": "oversize_top_tailored_bottom",
+            "name": "Oversized Elegance",
+            "style_tags": [
+                "minimal",
+                "smart_casual",
+                "elegant"
+            ],
+            "preferred_colors": [
+                "beige",
+                "camel",
+                "black",
+                "gray",
+                "charcoal"
+            ],
+            "composition": {
+                "top": "oversize",
+                "bottom": "tailored",
+                "outerwear": "long",
+                "shoes": "leather"
+            },
+            "keywords": {
+                "top": [
+                    "sweater",
+                    "knit",
+                    "cardigan",
+                    "blouse"
+                ],
+                "bottom": [
+                    "trousers",
+                    "tailored",
+                    "wide-leg"
+                ],
+                "outerwear": [
+                    "coat",
+                    "trench",
+                    "maxi"
+                ],
+                "shoes": [
+                    "loafers",
+                    "boots",
+                    "oxford"
+                ]
+            },
+            "confidence": 0.8
+        },
+        {
+            "rule_id": "monochrome_layering",
+            "name": "Monochrome Layering",
+            "style_tags": [
+                "minimal",
+                "classic",
+                "professional"
+            ],
+            "preferred_colors": [
+                "black",
+                "white",
+                "gray",
+                "navy",
+                "charcoal"
+            ],
+            "composition": {
+                "top": "fitted",
+                "bottom": "straight",
+                "outerwear": "structured",
+                "shoes": "minimal"
+            },
+            "keywords": {
+                "top": [
+                    "turtleneck",
+                    "shirt",
+                    "fitted"
+                ],
+                "bottom": [
+                    "straight",
+                    "classic",
+                    "ankle"
+                ],
+                "outerwear": [
+                    "blazer",
+                    "jacket",
+                    "structured"
+                ],
+                "shoes": [
+                    "sneakers",
+                    "loafers",
+                    "minimal"
+                ]
+            },
+            "confidence": 0.85
+        },
+        {
+            "rule_id": "relaxed_weekend",
+            "name": "Relaxed Weekend",
+            "style_tags": [
+                "casual",
+                "comfortable",
+                "relaxed"
+            ],
+            "preferred_colors": [
+                "beige",
+                "cream",
+                "olive",
+                "brown",
+                "tan"
+            ],
+            "composition": {
+                "top": "relaxed",
+                "bottom": "wide",
+                "outerwear": "oversized",
+                "shoes": "comfortable"
+            },
+            "keywords": {
+                "top": [
+                    "hoodie",
+                    "sweatshirt",
+                    "henley",
+                    "casual"
+                ],
+                "bottom": [
+                    "joggers",
+                    "cargo",
+                    "wide-leg",
+                    "relaxed"
+                ],
+                "outerwear": [
+                    "bomber",
+                    "puffer",
+                    "oversized"
+                ],
+                "shoes": [
+                    "sneakers",
+                    "boots",
+                    "casual"
+                ]
+            },
+            "confidence": 0.75
+        },
+        {
+            "rule_id": "power_dressing",
+            "name": "Power Dressing",
+            "style_tags": [
+                "professional",
+                "smart_casual",
+                "formal"
+            ],
+            "preferred_colors": [
+                "black",
+                "navy",
+                "burgundy",
+                "charcoal",
+                "white"
+            ],
+            "composition": {
+                "top": "crisp",
+                "bottom": "tailored",
+                "outerwear": "blazer",
+                "shoes": "formal"
+            },
+            "keywords": {
+                "top": [
+                    "shirt",
+                    "blouse",
+                    "oxford",
+                    "crisp"
+                ],
+                "bottom": [
+                    "trousers",
+                    "tailored",
+                    "slim"
+                ],
+                "outerwear": [
+                    "blazer",
+                    "suit"
+                ],
+                "shoes": [
+                    "oxford",
+                    "loafers",
+                    "heels"
+                ]
+            },
+            "confidence": 0.9
+        },
+        {
+            "rule_id": "textured_neutral",
+            "name": "Textured Neutrals",
+            "style_tags": [
+                "minimal",
+                "elegant",
+                "sophisticated"
+            ],
+            "preferred_colors": [
+                "beige",
+                "camel",
+                "cream",
+                "tan",
+                "brown"
+            ],
+            "composition": {
+                "top": "knit",
+                "bottom": "soft",
+                "outerwear": "textured",
+                "shoes": "suede"
+            },
+            "keywords": {
+                "top": [
+                    "knit",
+                    "cashmere",
+                    "wool",
+                    "sweater"
+                ],
+                "bottom": [
+                    "corduroy",
+                    "wool",
+                    "soft"
+                ],
+                "outerwear": [
+                    "wool",
+                    "shearling",
+                    "teddy"
+                ],
+                "shoes": [
+                    "suede",
+                    "chelsea",
+                    "desert"
+                ]
+            },
+            "confidence": 0.7
+        },
+        {
+            "rule_id": "edgy_urban",
+            "name": "Edgy Urban",
+            "style_tags": [
+                "edgy",
+                "streetwear",
+                "modern"
+            ],
+            "preferred_colors": [
+                "black",
+                "gray",
+                "olive",
+                "burgundy"
+            ],
+            "composition": {
+                "top": "fitted",
+                "bottom": "slim",
+                "outerwear": "leather",
+                "shoes": "chunky"
+            },
+            "keywords": {
+                "top": [
+                    "tee",
+                    "mock-neck",
+                    "fitted"
+                ],
+                "bottom": [
+                    "jeans",
+                    "slim",
+                    "skinny"
+                ],
+                "outerwear": [
+                    "leather",
+                    "biker",
+                    "moto"
+                ],
+                "shoes": [
+                    "boots",
+                    "chunky",
+                    "platform"
+                ]
+            },
+            "confidence": 0.75
+        }
+    ]
+}

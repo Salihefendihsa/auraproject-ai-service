@@ -221,3 +221,72 @@ def validate_image_upload_sync(content: bytes, content_type: Optional[str]) -> I
     
     logger.info(f"Image validated: {image.size[0]}x{image.size[1]}, {image.mode}")
     return image
+
+
+# ==================== OUTFIT SEED VALIDATION ====================
+
+ALLOWED_GENDERS = {"male", "female"}
+ALLOWED_EVENTS = {"work", "date", "party", "casual"}
+ALLOWED_SEASONS = {"summer", "winter"}
+ALLOWED_MODES = {"mock", "partial_tryon", "full_tryon"}
+
+
+def validate_outfit_seed_input(
+    gender: Optional[str],
+    seed_image_provided: bool,
+    person_image_provided: bool,
+    event: Optional[str] = None,
+    season: Optional[str] = None,
+    mode: Optional[str] = None
+) -> dict:
+    """
+    Validate input for POST /ai/outfit-seed endpoint.
+    
+    Args:
+        gender: Required gender field
+        seed_image_provided: Whether seed_image was uploaded
+        person_image_provided: Whether person_image was uploaded
+        event: Optional event type
+        season: Optional season
+        mode: Optional mode (defaults to "mock")
+    
+    Returns:
+        Dict with validated/normalized values
+    
+    Raises:
+        ValidationError: If validation fails
+    """
+    errors = []
+    
+    # Gender is mandatory
+    if not gender:
+        errors.append("gender is required")
+    elif gender.lower() not in ALLOWED_GENDERS:
+        errors.append(f"gender must be one of: {', '.join(ALLOWED_GENDERS)}")
+    
+    # At least one image required
+    if not seed_image_provided and not person_image_provided:
+        errors.append("At least one of seed_image or person_image is required")
+    
+    # Validate event if provided
+    if event and event.lower() not in ALLOWED_EVENTS:
+        errors.append(f"event must be one of: {', '.join(ALLOWED_EVENTS)}")
+    
+    # Validate season if provided
+    if season and season.lower() not in ALLOWED_SEASONS:
+        errors.append(f"season must be one of: {', '.join(ALLOWED_SEASONS)}")
+    
+    # Validate mode
+    normalized_mode = (mode or "mock").lower()
+    if normalized_mode not in ALLOWED_MODES:
+        errors.append(f"mode must be one of: {', '.join(ALLOWED_MODES)}")
+    
+    if errors:
+        raise ValidationError("; ".join(errors), status_code=400)
+    
+    return {
+        "gender": gender.lower(),
+        "event": event.lower() if event else None,
+        "season": season.lower() if season else None,
+        "mode": normalized_mode
+    }

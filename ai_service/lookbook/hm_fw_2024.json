@@ -1,0 +1,236 @@
+{
+    "brand": "H&M",
+    "season": "fall_winter",
+    "year": 2024,
+    "description": "Casual everyday outfit rules from H&M Fall/Winter 2024. These rules provide broader audience appeal and introduce variation without chaos.",
+    "brand_weight": 0.75,
+    "rules": [
+        {
+            "rule_id": "relaxed_casual_layers",
+            "name": "Relaxed Casual Layers",
+            "style_tags": [
+                "casual",
+                "daily",
+                "comfortable"
+            ],
+            "preferred_colors": [
+                "gray",
+                "navy",
+                "white",
+                "black"
+            ],
+            "composition": {
+                "top": "regular",
+                "bottom": "relaxed",
+                "outerwear": "short",
+                "shoes": "sneakers"
+            },
+            "keywords": {
+                "top": [
+                    "tee",
+                    "t-shirt",
+                    "sweatshirt",
+                    "regular"
+                ],
+                "bottom": [
+                    "jeans",
+                    "chinos",
+                    "relaxed"
+                ],
+                "outerwear": [
+                    "jacket",
+                    "hoodie",
+                    "bomber"
+                ],
+                "shoes": [
+                    "sneakers",
+                    "trainers",
+                    "casual"
+                ]
+            },
+            "confidence": 0.55
+        },
+        {
+            "rule_id": "cozy_winter_basic",
+            "name": "Cozy Winter Basic",
+            "style_tags": [
+                "casual",
+                "cozy",
+                "minimal"
+            ],
+            "preferred_colors": [
+                "beige",
+                "cream",
+                "gray",
+                "brown"
+            ],
+            "composition": {
+                "top": "oversized",
+                "bottom": "straight",
+                "outerwear": "puffer",
+                "shoes": "boots"
+            },
+            "keywords": {
+                "top": [
+                    "sweater",
+                    "knit",
+                    "hoodie",
+                    "oversized"
+                ],
+                "bottom": [
+                    "jeans",
+                    "straight",
+                    "regular"
+                ],
+                "outerwear": [
+                    "puffer",
+                    "quilted",
+                    "down"
+                ],
+                "shoes": [
+                    "boots",
+                    "chelsea",
+                    "ankle"
+                ]
+            },
+            "confidence": 0.60
+        },
+        {
+            "rule_id": "athleisure_everyday",
+            "name": "Athleisure Everyday",
+            "style_tags": [
+                "athleisure",
+                "sporty",
+                "casual"
+            ],
+            "preferred_colors": [
+                "black",
+                "gray",
+                "navy",
+                "white"
+            ],
+            "composition": {
+                "top": "fitted",
+                "bottom": "jogger",
+                "outerwear": "track",
+                "shoes": "running"
+            },
+            "keywords": {
+                "top": [
+                    "tee",
+                    "polo",
+                    "fitted",
+                    "athletic"
+                ],
+                "bottom": [
+                    "joggers",
+                    "track",
+                    "sweatpants"
+                ],
+                "outerwear": [
+                    "windbreaker",
+                    "track",
+                    "zip"
+                ],
+                "shoes": [
+                    "running",
+                    "sneakers",
+                    "athletic"
+                ]
+            },
+            "confidence": 0.50
+        },
+        {
+            "rule_id": "smart_casual_office",
+            "name": "Smart Casual Office",
+            "style_tags": [
+                "smart_casual",
+                "work",
+                "professional"
+            ],
+            "preferred_colors": [
+                "navy",
+                "white",
+                "gray",
+                "black",
+                "beige"
+            ],
+            "composition": {
+                "top": "button",
+                "bottom": "tailored",
+                "outerwear": "blazer_casual",
+                "shoes": "loafers"
+            },
+            "keywords": {
+                "top": [
+                    "shirt",
+                    "button",
+                    "oxford",
+                    "blouse"
+                ],
+                "bottom": [
+                    "chinos",
+                    "trousers",
+                    "tailored"
+                ],
+                "outerwear": [
+                    "blazer",
+                    "cardigan",
+                    "unstructured"
+                ],
+                "shoes": [
+                    "loafers",
+                    "derby",
+                    "oxford"
+                ]
+            },
+            "confidence": 0.65
+        },
+        {
+            "rule_id": "weekend_denim",
+            "name": "Weekend Denim",
+            "style_tags": [
+                "casual",
+                "weekend",
+                "denim"
+            ],
+            "preferred_colors": [
+                "blue",
+                "light_blue",
+                "white",
+                "black"
+            ],
+            "composition": {
+                "top": "casual",
+                "bottom": "denim",
+                "outerwear": "denim",
+                "shoes": "casual"
+            },
+            "keywords": {
+                "top": [
+                    "tee",
+                    "henley",
+                    "casual",
+                    "simple"
+                ],
+                "bottom": [
+                    "jeans",
+                    "denim",
+                    "straight",
+                    "slim"
+                ],
+                "outerwear": [
+                    "denim",
+                    "jacket",
+                    "trucker"
+                ],
+                "shoes": [
+                    "sneakers",
+                    "boots",
+                    "casual"
+                ]
+            },
+            "confidence": 0.55
+        }
+    ]
+}

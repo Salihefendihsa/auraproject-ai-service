@@ -21,6 +21,285 @@ from ai_service.llm.outfit_regenerator import regenerate_worst_outfits
 logger = logging.getLogger(__name__)
 
 
+# ==================== OUTFIT SEED PIPELINE ====================
+
+from ai_service.core.outfit_recommender import (
+    load_catalog,
+    build_seed_object,
+    generate_outfits,
+    plan_slots,
+    validate_catalog_slots,
+)
+
+
+class OutfitSeedError(Exception):
+    """Error during outfit seed job."""
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
+def run_outfit_seed_job(
+    job_id: str,
+    seed_image_path: Optional[str],
+    person_image_path: Optional[str],
+    gender: str,
+    event: Optional[str],
+    season: Optional[str],
+    mode: str,
+    seed_category: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Initialize a seed job and generate outfits.
+    
+    Args:
+        job_id: UUID for the job
+        seed_image_path: Path to seed garment image (optional)
+        person_image_path: Path to person image (optional)
+        gender: male or female
+        event: Optional event type
+        season: Optional season
+        mode: mock, partial_tryon, or full_tryon
+        seed_category: Optional explicit seed category (top/bottom/outerwear/shoes/accessory)
+    
+    Returns:
+        Dict with subject_type, seed, and outfits
+    
+    Raises:
+        OutfitSeedError: If catalog missing items or detection confidence too low
+    """
+    logger.info(f"[{job_id}] Initializing seed job (mode={mode})")
+    
+    # Step 1: Create job folder
+    storage.create_seed_job(job_id)
+    
+    # Step 2: Determine subject_type
+    subject_type = "person" if person_image_path else "mannequin"
+    
+    # Step 3: Build seed object with detection
+    seed, confidence = build_seed_object(
+        seed_image_path=seed_image_path,
+        seed_category=seed_category
+    )
+    
+    # Step 3b: Check detection confidence if no explicit category
+    if not seed_category and seed_image_path and confidence < 0.4:
+        logger.warning(f"[{job_id}] Low detection confidence: {confidence:.2f}")
+        raise OutfitSeedError(
+            f"Unable to detect garment category with confidence. "
+            f"Please provide seed_category explicitly (top/bottom/outerwear/shoes/accessory).",
+            status_code=400
+        )
+    
+    # Step 4: Load catalog
+    catalog = load_catalog()
+    if not catalog.get("items"):
+        raise OutfitSeedError("Catalog is empty or failed to load", status_code=500)
+    
+    # Step 5: Validate catalog has items for all required slots
+    slots_to_fill = plan_slots(seed["category"])
+    missing_slots = validate_catalog_slots(catalog, slots_to_fill, gender)
+    if missing_slots:
+        raise OutfitSeedError(
+            f"Catalog missing items for slots: {', '.join(missing_slots)} (gender={gender})",
+            status_code=400
+        )
+    
+    # Step 6: Generate 5 outfits
+    outfits = generate_outfits(
+        seed=seed,
+        catalog=catalog,
+        gender=gender,
+        event=event,
+        season=season
+    )
+    
+    # Step 6: Try-On Rendering based on mode
+    if mode == "full_tryon":
+        # Attempt full try-on, fallback to partial on failure
+        outfits = _render_full_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=person_image_path,
+            gender=gender
+        )
+    elif mode == "partial_tryon":
+        outfits = _render_partial_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=person_image_path,
+            gender=gender
+        )
+    else:
+        # For mock mode, just mark tryon_mode
+        for outfit in outfits:
+            outfit["tryon_mode"] = "mock"
+            outfit["render_url"] = None
+    
+    # Step 7: Save job.json with outfits
+    storage.save_seed_job_json(
+        job_id=job_id,
+        seed_image_path=seed_image_path,
+        person_image_path=person_image_path,
+        gender=gender,
+        event=event,
+        season=season,
+        mode=mode,
+        subject_type=subject_type
+    )
+    
+    # Step 8: Update job.json with outfits and stage
+    _update_job_with_outfits(job_id, seed, outfits)
+    
+    logger.info(f"[{job_id}] Seed job complete. subject_type={subject_type}, outfits={len(outfits)}")
+    
+    return {
+        "subject_type": subject_type,
+        "seed": seed,
+        "outfits": outfits
+    }
+
+
+def _render_partial_tryon_outfits(
+    job_id: str,
+    outfits: list,
+    person_image_path: Optional[str],
+    gender: str
+) -> list:
+    """
+    Render partial try-on for all outfits.
+    
+    Only renders upper body (top + outerwear).
+    Lower body and shoes remain mock.
+    """
+    from ai_service.renderer.partial_tryon import render_outfit_partial
+    
+    job_path = storage.get_job_path(job_id)
+    renders_dir = job_path / "renders"
+    renders_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"[{job_id}] Rendering partial try-on for {len(outfits)} outfits")
+    
+    for outfit in outfits:
+        rank = outfit.get("rank", 1)
+        
+        # Attempt partial try-on render
+        render_filename = render_outfit_partial(
+            outfit=outfit,
+            job_id=job_id,
+            person_image_path=person_image_path,
+            gender=gender,
+            output_dir=renders_dir
+        )
+        
+        if render_filename:
+            outfit["render_url"] = f"/ai/assets/jobs/{job_id}/renders/{render_filename}"
+            outfit["tryon_mode"] = "partial"
+            logger.info(f"[{job_id}] Outfit {rank}: partial render OK")
+        else:
+            outfit["render_url"] = None
+            outfit["tryon_mode"] = "mock"
+            logger.warning(f"[{job_id}] Outfit {rank}: partial render failed, using mock")
+    
+    return outfits
+
+
+def _render_full_tryon_outfits(
+    job_id: str,
+    outfits: list,
+    person_image_path: Optional[str],
+    gender: str
+) -> list:
+    """
+    Render full try-on for all outfits.
+    
+    Attempts full body try-on with warp-based fitting.
+    Falls back to partial try-on if full fails.
+    """
+    from ai_service.renderer.full_tryon import render_outfit_full
+    from ai_service.renderer.partial_tryon import render_outfit_partial
+    
+    job_path = storage.get_job_path(job_id)
+    renders_dir = job_path / "renders"
+    renders_dir.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"[{job_id}] Rendering full try-on for {len(outfits)} outfits")
+    
+    for outfit in outfits:
+        rank = outfit.get("rank", 1)
+        
+        # Attempt full try-on render
+        render_filename = render_outfit_full(
+            outfit=outfit,
+            job_id=job_id,
+            person_image_path=person_image_path,
+            gender=gender,
+            output_dir=renders_dir
+        )
+        
+        if render_filename:
+            outfit["render_url"] = f"/ai/assets/jobs/{job_id}/renders/{render_filename}"
+            outfit["tryon_mode"] = "full"
+            logger.info(f"[{job_id}] Outfit {rank}: full render OK")
+        else:
+            # Fallback to partial try-on
+            logger.warning(f"[{job_id}] Outfit {rank}: full render failed, falling back to partial")
+            
+            render_filename = render_outfit_partial(
+                outfit=outfit,
+                job_id=job_id,
+                person_image_path=person_image_path,
+                gender=gender,
+                output_dir=renders_dir
+            )
+            
+            if render_filename:
+                outfit["render_url"] = f"/ai/assets/jobs/{job_id}/renders/{render_filename}"
+                outfit["tryon_mode"] = "partial_fallback"
+                logger.info(f"[{job_id}] Outfit {rank}: partial fallback OK")
+            else:
+                outfit["render_url"] = None
+                outfit["tryon_mode"] = "mock"
+                logger.warning(f"[{job_id}] Outfit {rank}: all renders failed, using mock")
+    
+    return outfits
+
+
+def _update_job_with_outfits(job_id: str, seed: Dict[str, Any], outfits: list) -> None:
+    """Update job.json with generated outfits."""
+    import json
+    from datetime import datetime, timezone
+    
+    job_path = storage.get_job_path(job_id)
+    job_json_path = job_path / "job.json"
+    
+    try:
+        with open(job_json_path, "r", encoding="utf-8") as f:
+            job_data = json.load(f)
+    except Exception:
+        job_data = {}
+    
+    job_data["seed"] = {
+        "status": "detected",
+        "category": seed.get("category"),
+        "color": seed.get("color"),
+        "style": [],
+        "locked": True
+    }
+    job_data["outfits"] = outfits
+    job_data["current_stage"] = "outfits_generated"
+    job_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    with open(job_json_path, "w", encoding="utf-8") as f:
+        json.dump(job_data, f, indent=2)
+    
+    logger.info(f"[{job_id}] Updated job.json with {len(outfits)} outfits")
+
+
+# ==================== MAIN PIPELINE ====================
+
+
 async def run_pipeline(
     job_id: str,
     image_path: str,

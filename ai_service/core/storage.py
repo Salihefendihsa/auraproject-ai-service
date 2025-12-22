@@ -1,10 +1,12 @@
 """
 Storage Manager for job data.
 """
+import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,78 @@ class StorageManager:
             raise ValueError("Path traversal not allowed")
         
         return full_path
+    
+    # ==================== SEED JOB HELPERS ====================
+    
+    def create_seed_job(self, job_id: str) -> Path:
+        """
+        Create a seed job folder structure.
+        
+        Args:
+            job_id: UUID for the job
+        
+        Returns:
+            Path to job directory
+        """
+        job_path = self.jobs_dir / job_id
+        job_path.mkdir(parents=True, exist_ok=True)
+        (job_path / "masks").mkdir(exist_ok=True)
+        (job_path / "renders").mkdir(exist_ok=True)
+        logger.info(f"Created seed job folder: {job_path}")
+        return job_path
+    
+    def save_seed_job_json(
+        self,
+        job_id: str,
+        seed_image_path: Optional[str],
+        person_image_path: Optional[str],
+        gender: str,
+        event: Optional[str],
+        season: Optional[str],
+        mode: str,
+        subject_type: str
+    ) -> Path:
+        """
+        Save job.json for a seed job.
+        
+        Args:
+            job_id: Job UUID
+            seed_image_path: Path to seed image (if provided)
+            person_image_path: Path to person image (if provided)
+            gender: male or female
+            event: Optional event type
+            season: Optional season
+            mode: mock, partial_tryon, or full_tryon
+            subject_type: person or mannequin
+        
+        Returns:
+            Path to job.json
+        """
+        job_path = self.get_job_path(job_id)
+        job_json_path = job_path / "job.json"
+        
+        data = {
+            "job_id": job_id,
+            "version": "3.0.0",
+            "inputs": {
+                "seed_image_path": seed_image_path,
+                "person_image_path": person_image_path,
+                "gender": gender,
+                "event": event,
+                "season": season,
+                "mode": mode
+            },
+            "subject_type": subject_type,
+            "current_stage": "initialized",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        with open(job_json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        
+        logger.info(f"Saved job.json: {job_json_path}")
+        return job_json_path
 
 
 # Global instance

@@ -9,11 +9,12 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, R
 from fastapi.responses import FileResponse, JSONResponse
 
 from ai_service.core.storage import storage
-from ai_service.core.orchestrator import run_pipeline
+from ai_service.core.orchestrator import run_pipeline, run_outfit_seed_job
 from ai_service.core.validation import (
     ValidationError,
     validate_image_upload,
     sanitize_asset_path,
+    validate_outfit_seed_input,
 )
 from ai_service.core.auth import (
     User,
@@ -150,6 +151,192 @@ async def create_new_user(
         )
     
     return JSONResponse(content=user, status_code=201)
+
+
+# ==================== OUTFIT SEED (v3.0.0) ====================
+
+from ai_service.core.orchestrator import OutfitSeedError
+
+ALLOWED_SEED_CATEGORIES = {"top", "bottom", "outerwear", "shoes", "accessory"}
+
+
+def _get_file_extension(upload_file: UploadFile) -> str:
+    """Get appropriate file extension from upload file."""
+    # Try content type first
+    content_type_map = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    ext = content_type_map.get(upload_file.content_type, None)
+    if ext:
+        return ext
+    
+    # Fallback to filename
+    if upload_file.filename and "." in upload_file.filename:
+        return "." + upload_file.filename.rsplit(".", 1)[-1].lower()
+    
+    # Default to jpg
+    return ".jpg"
+
+
+def _compute_aggregate_tryon_mode(outfits: list) -> str:
+    """Compute aggregate tryon_mode from all outfits."""
+    modes = [o.get("tryon_mode", "mock") for o in outfits]
+    
+    if all(m == "full" for m in modes):
+        return "full"
+    elif all(m == "mock" for m in modes):
+        return "mock"
+    elif all(m == "partial" for m in modes):
+        return "partial"
+    elif all(m == "partial_fallback" for m in modes):
+        return "partial_fallback"
+    else:
+        return "mixed"
+
+
+@router.post("/ai/outfit-seed")
+async def create_outfit_seed(
+    request: Request,
+    seed_image: Optional[UploadFile] = File(None, description="Seed garment image"),
+    person_image: Optional[UploadFile] = File(None, description="Full-body person image"),
+    gender: str = Form(..., description="Gender: male or female"),
+    seed_category: Optional[str] = Form(None, description="Seed category: top, bottom, outerwear, shoes, accessory"),
+    event: Optional[str] = Form(None, description="Event type: work, date, party, casual"),
+    season: Optional[str] = Form(None, description="Season: summer, winter"),
+    mode: Optional[str] = Form("mock", description="Mode: mock, partial_tryon, full_tryon"),
+    user: User = Depends(get_current_user)
+):
+    """
+    POST /ai/outfit-seed (v3.0.0)
+    
+    Create a seed-locked outfit job with 5 outfits. The seed item
+    is locked and appears in all outfits.
+    
+    Headers:
+        X-API-Key: Your API key (required)
+    
+    Form Parameters:
+        - seed_image: Seed garment image (optional)
+        - person_image: Full-body person image (optional)
+        - gender: male | female (required)
+        - seed_category: top | bottom | outerwear | shoes | accessory (optional, auto-detected if not provided)
+        - event: work | date | party | casual (optional)
+        - season: summer | winter (optional)
+        - mode: mock | partial_tryon | full_tryon (default: mock)
+    
+    At least one of seed_image or person_image must be provided.
+    """
+    import uuid
+    
+    # Rate limiting
+    await check_rate_limit(request, user)
+    
+    try:
+        # Validate input
+        seed_image_provided = seed_image is not None and seed_image.filename
+        person_image_provided = person_image is not None and person_image.filename
+        
+        try:
+            validated = validate_outfit_seed_input(
+                gender=gender,
+                seed_image_provided=seed_image_provided,
+                person_image_provided=person_image_provided,
+                event=event,
+                season=season,
+                mode=mode
+            )
+        except ValidationError as ve:
+            raise HTTPException(status_code=ve.status_code, detail=ve.message)
+        
+        # Validate seed_category if provided
+        validated_seed_category = None
+        if seed_category:
+            if seed_category.lower() not in ALLOWED_SEED_CATEGORIES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"seed_category must be one of: {', '.join(ALLOWED_SEED_CATEGORIES)}"
+                )
+            validated_seed_category = seed_category.lower()
+        
+        # Generate job ID
+        job_id = str(uuid.uuid4())
+        logger.info(f"Outfit-seed request: job_id={job_id}, gender={validated['gender']}, mode={validated['mode']}, seed_category={validated_seed_category}")
+        
+        # Save images with proper extensions
+        seed_image_path = None
+        person_image_path = None
+        
+        job_path = storage.get_job_path(job_id)
+        job_path.mkdir(parents=True, exist_ok=True)
+        
+        if seed_image_provided:
+            ext = _get_file_extension(seed_image)
+            seed_path = job_path / f"seed_image{ext}"
+            content = await seed_image.read()
+            with open(seed_path, "wb") as f:
+                f.write(content)
+            seed_image_path = str(seed_path)
+        
+        if person_image_provided:
+            ext = _get_file_extension(person_image)
+            person_path = job_path / f"person_image{ext}"
+            content = await person_image.read()
+            with open(person_path, "wb") as f:
+                f.write(content)
+            person_image_path = str(person_path)
+        
+        # Run seed job pipeline
+        try:
+            result = run_outfit_seed_job(
+                job_id=job_id,
+                seed_image_path=seed_image_path,
+                person_image_path=person_image_path,
+                gender=validated["gender"],
+                event=validated["event"],
+                season=validated["season"],
+                mode=validated["mode"],
+                seed_category=validated_seed_category
+            )
+        except OutfitSeedError as ose:
+            raise HTTPException(status_code=ose.status_code, detail=ose.message)
+        
+        # Extract results
+        subject_type = result["subject_type"]
+        seed = result["seed"]
+        outfits = result["outfits"]
+        
+        # Compute aggregate tryon_mode from actual render results
+        actual_tryon_mode = _compute_aggregate_tryon_mode(outfits)
+        
+        # Return response contract
+        response = {
+            "version": "3.0.0",
+            "job_id": job_id,
+            "seed_locked": True,
+            "seed": {
+                "status": "detected",
+                "category": seed.get("category"),
+                "color": seed.get("color"),
+                "confidence": seed.get("detection_confidence", 1.0),
+                "style": seed.get("style", [])
+            },
+            "outfits": outfits,
+            "tryon_mode": actual_tryon_mode,
+            "subject_type": subject_type,
+            "message": "Job created. Pipeline completed."
+        }
+        
+        headers = get_rate_limit_headers(request, user)
+        return JSONResponse(content=response, headers=headers)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Outfit-seed failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== OUTFIT GENERATION ====================
