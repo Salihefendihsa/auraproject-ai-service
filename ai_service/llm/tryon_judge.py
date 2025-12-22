@@ -7,6 +7,7 @@ Uses AURA_JUDGE_* environment variables for provider/model selection.
 import os
 import json
 import logging
+import asyncio
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 from dataclasses import dataclass
@@ -159,25 +160,30 @@ async def judge_all_outfits(
     renders_dir: str,
     outfit_count: int = 5
 ) -> List[JudgeResult]:
-    """Judge all try-on renders."""
-    results = []
+    """Judge all try-on renders in parallel."""
     renders_path = Path(renders_dir)
+    tasks = []
     
     for i in range(1, outfit_count + 1):
         render_file = renders_path / f"outfit_{i}.png"
         
         if render_file.exists():
-            result = await judge_tryon_quality(
+            tasks.append(judge_tryon_quality(
                 original_image_path=original_image_path,
                 rendered_image_path=str(render_file),
                 outfit_index=i
-            )
-            results.append(result)
-        else:
-            results.append(JudgeResult(
-                outfit_index=i, quality_score=0.3, verdict="bad", issues=["render_missing"]
             ))
+        else:
+            # Add a future that returns a failure result
+            async def missing_render(idx):
+                return JudgeResult(outfit_index=idx, quality_score=0.3, verdict="bad", issues=["render_missing"])
+            tasks.append(missing_render(i))
     
+    # Run all judging tasks in parallel
+    results = await asyncio.gather(*tasks)
+    
+    # Sort results by quality score
+    results = list(results)
     results.sort(key=lambda r: r.quality_score, reverse=True)
     return results
 

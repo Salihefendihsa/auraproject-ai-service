@@ -1,0 +1,121 @@
+{
+    "version": "1.0.0",
+    "last_updated": "2024-12-22",
+    "season": "winter",
+    "trends": [
+        {
+            "name": "Quiet Luxury",
+            "description": "Minimalist elegance with neutral tones and quality fabrics",
+            "colors": [
+                "beige",
+                "camel",
+                "cream",
+                "gray",
+                "navy"
+            ],
+            "styles": [
+                "minimal",
+                "elegant",
+                "classic"
+            ],
+            "popularity": 0.95
+        },
+        {
+            "name": "Athleisure",
+            "description": "Sport-meets-street comfort with technical fabrics",
+            "colors": [
+                "black",
+                "gray",
+                "white",
+                "olive"
+            ],
+            "styles": [
+                "sporty",
+                "athleisure",
+                "casual"
+            ],
+            "popularity": 0.88
+        },
+        {
+            "name": "Dark Academia",
+            "description": "Scholarly aesthetic with earthy tones and layering",
+            "colors": [
+                "brown",
+                "burgundy",
+                "navy",
+                "olive",
+                "beige"
+            ],
+            "styles": [
+                "preppy",
+                "classic",
+                "british"
+            ],
+            "popularity": 0.82
+        },
+        {
+            "name": "Streetwear",
+            "description": "Urban style with bold graphics and sneaker culture",
+            "colors": [
+                "black",
+                "white",
+                "gray"
+            ],
+            "styles": [
+                "streetwear",
+                "edgy",
+                "casual"
+            ],
+            "popularity": 0.78
+        },
+        {
+            "name": "Scandinavian Minimal",
+            "description": "Clean lines and functional design",
+            "colors": [
+                "white",
+                "gray",
+                "black",
+                "beige"
+            ],
+            "styles": [
+                "minimal",
+                "casual"
+            ],
+            "popularity": 0.75
+        }
+    ],
+    "seasonal_colors": {
+        "winter": [
+            "navy",
+            "burgundy",
+            "charcoal",
+            "camel",
+            "olive"
+        ],
+        "spring": [
+            "light_blue",
+            "pink",
+            "beige",
+            "white",
+            "olive"
+        ],
+        "summer": [
+            "white",
+            "beige",
+            "light_blue",
+            "tan",
+            "pink"
+        ],
+        "fall": [
+            "burgundy",
+            "olive",
+            "camel",
+            "brown",
+            "navy"
+        ]
+    },
+    "weekly_highlight": {
+        "item": "Camel Overcoat",
+        "reason": "Perfect for winter layering with timeless appeal"
+    }
+}

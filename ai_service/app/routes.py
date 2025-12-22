@@ -162,6 +162,7 @@ async def create_outfit(
     event: Optional[str] = Form(None, description="Event type: business, casual, sport, wedding, party, date"),
     city: Optional[str] = Form(None, description="City for weather context"),
     mode: Optional[str] = Form("full", description="Mode: full (5 outfits) | single (best outfit only)"),
+    turbo: Optional[bool] = Form(False, description="Turbo mode for faster processing (v2.9.0)"),
     user: User = Depends(get_current_user)
 ):
     """
@@ -236,7 +237,8 @@ async def create_outfit(
                 owner_user_id=user.user_id,
                 event=event,
                 weather_context=weather_context,
-                mode=mode  # v2.7.0: Pass mode to orchestrator
+                mode=mode,  # v2.7.0: Pass mode to orchestrator
+                turbo=turbo  # v2.9.0: Pass turbo flag
             )
             
             # v2.7.0: Handle single mode response
@@ -701,6 +703,118 @@ async def remove_wardrobe_item(
         raise HTTPException(status_code=404, detail="Item not found")
     
     return JSONResponse(content={"message": "Item deleted"})
+
+
+# ==================== CATALOG-BASED OUTFIT ====================
+
+from ai_service.outfit_recommender import generate_outfit_combos, generate_single_item_combos
+from ai_service.outfit_renderer import render_all_outfit_cards
+
+
+@router.post("/ai/outfit-catalog")
+async def catalog_outfit(
+    request: Request,
+    image: UploadFile = File(..., description="User photo or clothing item"),
+    item_category: Optional[str] = Form(None, description="Category of uploaded item: top, bottom, outerwear, shoes"),
+    item_color: Optional[str] = Form(None, description="Color of uploaded item"),
+    gender: Optional[str] = Form("unisex", description="Gender for outfit recommendations: male, female, unisex"),
+    user: User = Depends(get_current_user)
+):
+    """
+    Generate catalog-based outfit recommendations.
+    
+    v3.0.0: New catalog-based outfit system.
+    
+    Flow:
+    1. User uploads a photo of themselves OR a single clothing item
+    2. If item_category is provided, treat as single item upload
+    3. Generate 5 matching outfit combinations from catalog
+    4. Render outfit cards on model images
+    5. Return outfit cards with garment details
+    """
+    import uuid
+    
+    # Rate limiting
+    await check_rate_limit(request, user)
+    
+    try:
+        # Validate image
+        try:
+            content, validated_image = await validate_image_upload(
+                image,
+                image.content_type
+            )
+        except ValidationError as ve:
+            raise HTTPException(status_code=ve.status_code, detail=ve.message)
+        
+        job_id = str(uuid.uuid4())
+        logger.info(f"Catalog outfit job: {job_id}")
+        
+        # Determine if this is a single item upload or full photo
+        if item_category:
+            # User uploaded a single clothing item
+            if item_category not in ["top", "bottom", "outerwear", "shoes"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid item_category. Use: top, bottom, outerwear, shoes"
+                )
+            
+            # Use provided color or detect
+            color = item_color or "black"
+            
+            # Generate outfits that match this item
+            outfits = generate_single_item_combos(
+                item_category=item_category,
+                item_color=color,
+                item_name=f"Your {item_category}",
+                num_outfits=5,
+                gender=gender or "unisex"
+            )
+            
+        else:
+            # Full photo - detect what user is wearing, suggest rest
+            # For now, default to bottom (user has pants, need top/outerwear/shoes)
+            fixed_item = {"name": "Your Current Outfit", "color": "neutral"}
+            outfits = generate_outfit_combos(
+                fixed_item=fixed_item,
+                fixed_category="bottom",  # Assume user's bottom is kept
+                num_outfits=5,
+                gender=gender or "unisex"
+            )
+        
+        if not outfits:
+            raise HTTPException(status_code=500, detail="Failed to generate outfits")
+        
+        # Create renders directory
+        renders_dir = storage.get_job_path(job_id) / "renders"
+        renders_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Render outfit cards
+        model_gender = "male" if gender == "male" else ("female" if gender == "female" else "male")
+        renders = render_all_outfit_cards(
+            outfits=outfits,
+            output_dir=str(renders_dir),
+            model_gender=model_gender
+        )
+        
+        # Add render URLs to outfits
+        for outfit in outfits:
+            rank = outfit.get("rank", 1)
+            if rank in renders:
+                outfit["render_url"] = f"/ai/assets/jobs/{job_id}/renders/{renders[rank]}"
+        
+        return JSONResponse(content={
+            "job_id": job_id,
+            "outfits": outfits,
+            "count": len(outfits),
+            "version": "catalog-v3.0.0"
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Catalog outfit failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/ai/assets/{file_path:path}")
 async def serve_asset(

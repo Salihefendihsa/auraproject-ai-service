@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA - Trend Outfit Recommendations</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            text-align: center;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 8px;
+        }
+
+        select,
+        .file-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 0.95rem;
+        }
+
+        select option {
+            background: #1a1a2e;
+        }
+
+        .file-input {
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Outfit Cards Grid */
+        .outfits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .outfit-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .outfit-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .outfit-card img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+
+        .outfit-info {
+            padding: 15px;
+        }
+
+        .outfit-rank {
+            display: inline-block;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 8px;
+        }
+
+        .outfit-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .outfit-items {
+            font-size: 0.85rem;
+            color: #aaa;
+        }
+
+        .outfit-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .outfit-item:last-child {
+            border: none;
+        }
+
+        .outfit-item-cat {
+            color: #667eea;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .outfit-item-name {
+            color: #fff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff9999;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>AURA Trend Outfits</h1>
+        <p class="subtitle">Katalog Tabanlı Kombin Önerileri v3.0</p>
+
+        <div class="input-section">
+            <div class="form-group">
+                <label>Kıyafet Kategorisi</label>
+                <select id="categorySelect">
+                    <option value="bottom">Alt Giyim (Pantolon)</option>
+                    <option value="top">Üst Giyim</option>
+                    <option value="shoes">Ayakkabı</option>
+                    <option value="outerwear">Dış Giyim</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Renk</label>
+                <select id="colorSelect">
+                    <option value="beige">Bej</option>
+                    <option value="black">Siyah</option>
+                    <option value="white">Beyaz</option>
+                    <option value="navy">Lacivert</option>
+                    <option value="gray">Gri</option>
+                    <option value="olive">Haki</option>
+                    <option value="burgundy">Bordo</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Cinsiyet</label>
+                <select id="genderSelect">
+                    <option value="male">Erkek</option>
+                    <option value="female">Kadın</option>
+                    <option value="unisex">Unisex</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Fotoğraf (İsteğe Bağlı)</label>
+                <input type="file" id="imageInput" accept="image/*" class="file-input">
+            </div>
+
+            <button id="generateBtn" class="btn">Kombın Öner</button>
+        </div>
+
+        <div id="errorBox" class="error hidden"></div>
+
+        <div id="loadingArea" class="loading hidden">
+            <div class="loading-spinner"></div>
+            <p>Kombinler hazırlanıyor...</p>
+        </div>
+
+        <div id="outfitsGrid" class="outfits-grid"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        const categorySelect = document.getElementById('categorySelect');
+        const colorSelect = document.getElementById('colorSelect');
+        const genderSelect = document.getElementById('genderSelect');
+        const imageInput = document.getElementById('imageInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const errorBox = document.getElementById('errorBox');
+        const loadingArea = document.getElementById('loadingArea');
+        const outfitsGrid = document.getElementById('outfitsGrid');
+
+        generateBtn.addEventListener('click', async () => {
+            // Clear previous
+            outfitsGrid.innerHTML = '';
+            errorBox.classList.add('hidden');
+            loadingArea.classList.remove('hidden');
+            generateBtn.disabled = true;
+
+            try {
+                const formData = new FormData();
+
+                // Add image or create placeholder
+                if (imageInput.files.length > 0) {
+                    formData.append('image', imageInput.files[0]);
+                } else {
+                    // Create dummy image blob
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 100;
+                    canvas.height = 100;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ccc';
+                    ctx.fillRect(0, 0, 100, 100);
+                    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg'));
+                    formData.append('image', blob, 'placeholder.jpg');
+                }
+
+                formData.append('item_category', categorySelect.value);
+                formData.append('item_color', colorSelect.value);
+                formData.append('gender', genderSelect.value);
+
+                const response = await fetch(`${API_BASE}/ai/outfit-catalog`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Request failed');
+                }
+
+                const data = await response.json();
+                displayOutfits(data.outfits);
+
+            } catch (err) {
+                errorBox.textContent = err.message;
+                errorBox.classList.remove('hidden');
+            } finally {
+                loadingArea.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        });
+
+        function displayOutfits(outfits) {
+            outfitsGrid.innerHTML = '';
+
+            outfits.forEach(outfit => {
+                const card = document.createElement('div');
+                card.className = 'outfit-card';
+
+                const imgUrl = outfit.render_url
+                    ? API_BASE + outfit.render_url
+                    : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect fill="%23333"/></svg>';
+
+                let itemsHtml = '';
+                const categories = ['top', 'bottom', 'outerwear', 'shoes'];
+                categories.forEach(cat => {
+                    const item = outfit.items[cat];
+                    if (item) {
+                        const icon = item.source === 'user' ? '👤' : '✨';
+                        itemsHtml += `
+                            <div class="outfit-item">
+                                <span class="outfit-item-cat">${icon} ${cat}</span>
+                                <span class="outfit-item-name">${item.color} ${item.name}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="Outfit ${outfit.rank}">
+                    <div class="outfit-info">
+                        <span class="outfit-rank">#${outfit.rank}</span>
+                        <h3 class="outfit-title">${outfit.style_tag}</h3>
+                        <div class="outfit-items">${itemsHtml}</div>
+                    </div>
+                `;
+
+                outfitsGrid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+
+</html>

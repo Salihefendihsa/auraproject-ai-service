@@ -1,0 +1,381 @@
+{
+  "version": "2.0.0",
+  "last_updated": "2024-12-22",
+  "items": [
+    {
+      "id": "top_001",
+      "category": "top",
+      "name": "White Cotton T-Shirt",
+      "color": "white",
+      "style": [
+        "casual",
+        "minimal"
+      ],
+      "gender": "unisex",
+      "image": "top_001_white_tshirt.jpg"
+    },
+    {
+      "id": "top_002",
+      "category": "top",
+      "name": "Navy Oxford Button-Up",
+      "color": "navy",
+      "style": [
+        "smart_casual",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "top_002_navy_oxford.jpg"
+    },
+    {
+      "id": "top_003",
+      "category": "top",
+      "name": "Black Graphic Hoodie",
+      "color": "black",
+      "style": [
+        "streetwear",
+        "casual"
+      ],
+      "gender": "unisex",
+      "image": "top_003_black_hoodie.jpg"
+    },
+    {
+      "id": "top_004",
+      "category": "top",
+      "name": "Beige Knit Sweater",
+      "color": "beige",
+      "style": [
+        "cozy",
+        "minimal"
+      ],
+      "gender": "unisex",
+      "image": "top_004_beige_sweater.jpg"
+    },
+    {
+      "id": "top_005",
+      "category": "top",
+      "name": "Burgundy Polo Shirt",
+      "color": "burgundy",
+      "style": [
+        "preppy",
+        "smart_casual"
+      ],
+      "gender": "unisex",
+      "image": "top_005_burgundy_polo.jpg"
+    },
+    {
+      "id": "top_006",
+      "category": "top",
+      "name": "Gray Crewneck Sweatshirt",
+      "color": "gray",
+      "style": [
+        "athleisure",
+        "casual"
+      ],
+      "gender": "unisex",
+      "image": "top_006_gray_sweatshirt.jpg"
+    },
+    {
+      "id": "top_007",
+      "category": "top",
+      "name": "Olive Henley Shirt",
+      "color": "olive",
+      "style": [
+        "rugged",
+        "casual"
+      ],
+      "gender": "male",
+      "image": "top_007_olive_henley.jpg"
+    },
+    {
+      "id": "top_008",
+      "category": "top",
+      "name": "Pink Satin Blouse",
+      "color": "pink",
+      "style": [
+        "elegant",
+        "feminine"
+      ],
+      "gender": "female",
+      "image": "top_008_pink_blouse.jpg"
+    },
+    {
+      "id": "bottom_001",
+      "category": "bottom",
+      "name": "Black Slim Jeans",
+      "color": "black",
+      "style": [
+        "casual",
+        "versatile"
+      ],
+      "gender": "unisex",
+      "image": "bottom_001_black_jeans.jpg"
+    },
+    {
+      "id": "bottom_002",
+      "category": "bottom",
+      "name": "Beige Chinos",
+      "color": "beige",
+      "style": [
+        "smart_casual",
+        "preppy"
+      ],
+      "gender": "unisex",
+      "image": "bottom_002_beige_chinos.jpg"
+    },
+    {
+      "id": "bottom_003",
+      "category": "bottom",
+      "name": "Navy Tailored Trousers",
+      "color": "navy",
+      "style": [
+        "formal",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "bottom_003_navy_trousers.jpg"
+    },
+    {
+      "id": "bottom_004",
+      "category": "bottom",
+      "name": "Light Blue Mom Jeans",
+      "color": "light_blue",
+      "style": [
+        "casual",
+        "retro"
+      ],
+      "gender": "female",
+      "image": "bottom_004_lightblue_jeans.jpg"
+    },
+    {
+      "id": "bottom_005",
+      "category": "bottom",
+      "name": "Gray Athletic Joggers",
+      "color": "gray",
+      "style": [
+        "athleisure",
+        "sporty"
+      ],
+      "gender": "unisex",
+      "image": "bottom_005_gray_joggers.jpg"
+    },
+    {
+      "id": "bottom_006",
+      "category": "bottom",
+      "name": "Olive Cargo Pants",
+      "color": "olive",
+      "style": [
+        "streetwear",
+        "utility"
+      ],
+      "gender": "unisex",
+      "image": "bottom_006_olive_cargo.jpg"
+    },
+    {
+      "id": "outerwear_001",
+      "category": "outerwear",
+      "name": "Black Leather Jacket",
+      "color": "black",
+      "style": [
+        "edgy",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_001_leather_jacket.jpg"
+    },
+    {
+      "id": "outerwear_002",
+      "category": "outerwear",
+      "name": "Camel Wool Overcoat",
+      "color": "camel",
+      "style": [
+        "elegant",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_002_camel_coat.jpg"
+    },
+    {
+      "id": "outerwear_003",
+      "category": "outerwear",
+      "name": "Navy Trench Coat",
+      "color": "navy",
+      "style": [
+        "british",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_003_navy_trench.jpg"
+    },
+    {
+      "id": "outerwear_004",
+      "category": "outerwear",
+      "name": "Denim Jacket",
+      "color": "blue",
+      "style": [
+        "casual",
+        "americana"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_004_denim_jacket.jpg"
+    },
+    {
+      "id": "outerwear_005",
+      "category": "outerwear",
+      "name": "Olive Bomber Jacket",
+      "color": "olive",
+      "style": [
+        "streetwear",
+        "military"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_005_olive_bomber.jpg"
+    },
+    {
+      "id": "outerwear_006",
+      "category": "outerwear",
+      "name": "Charcoal Blazer",
+      "color": "charcoal",
+      "style": [
+        "smart_casual",
+        "professional"
+      ],
+      "gender": "unisex",
+      "image": "outerwear_006_charcoal_blazer.jpg"
+    },
+    {
+      "id": "shoes_001",
+      "category": "shoes",
+      "name": "White Sneakers",
+      "color": "white",
+      "style": [
+        "casual",
+        "minimal"
+      ],
+      "gender": "unisex",
+      "image": "shoes_001_white_sneakers.jpg"
+    },
+    {
+      "id": "shoes_002",
+      "category": "shoes",
+      "name": "Brown Leather Loafers",
+      "color": "brown",
+      "style": [
+        "smart_casual",
+        "preppy"
+      ],
+      "gender": "unisex",
+      "image": "shoes_002_brown_loafers.jpg"
+    },
+    {
+      "id": "shoes_003",
+      "category": "shoes",
+      "name": "Black Chelsea Boots",
+      "color": "black",
+      "style": [
+        "edgy",
+        "classic"
+      ],
+      "gender": "unisex",
+      "image": "shoes_003_black_boots.jpg"
+    },
+    {
+      "id": "shoes_004",
+      "category": "shoes",
+      "name": "Canvas High-Tops",
+      "color": "black",
+      "style": [
+        "streetwear",
+        "casual"
+      ],
+      "gender": "unisex",
+      "image": "shoes_004_black_hightops.jpg"
+    },
+    {
+      "id": "shoes_005",
+      "category": "shoes",
+      "name": "Black Running Shoes",
+      "color": "black",
+      "style": [
+        "sporty",
+        "athleisure"
+      ],
+      "gender": "unisex",
+      "image": "shoes_005_black_running.jpg"
+    },
+    {
+      "id": "shoes_006",
+      "category": "shoes",
+      "name": "Tan Strappy Sandals",
+      "color": "tan",
+      "style": [
+        "summer",
+        "bohemian"
+      ],
+      "gender": "female",
+      "image": "shoes_006_tan_sandals.jpg"
+    }
+  ],
+  "color_compatibility": {
+    "white": [
+      "navy",
+      "black",
+      "beige",
+      "burgundy",
+      "olive",
+      "gray",
+      "brown"
+    ],
+    "black": [
+      "white",
+      "gray",
+      "red",
+      "pink",
+      "beige",
+      "camel"
+    ],
+    "navy": [
+      "white",
+      "beige",
+      "camel",
+      "gray",
+      "brown",
+      "light_blue"
+    ],
+    "beige": [
+      "navy",
+      "white",
+      "brown",
+      "olive",
+      "burgundy",
+      "black"
+    ],
+    "gray": [
+      "black",
+      "white",
+      "navy",
+      "burgundy",
+      "pink"
+    ],
+    "olive": [
+      "beige",
+      "white",
+      "brown",
+      "black",
+      "camel"
+    ],
+    "burgundy": [
+      "beige",
+      "white",
+      "gray",
+      "navy",
+      "camel"
+    ],
+    "brown": [
+      "beige",
+      "white",
+      "navy",
+      "olive",
+      "camel"
+    ]
+  }
+}

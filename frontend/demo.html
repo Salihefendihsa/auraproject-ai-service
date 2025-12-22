@@ -347,6 +347,14 @@
             </select>
         </div>
 
+        <div class="input-group"
+            style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
+            <input type="checkbox" id="turboToggle" checked style="width: 20px; height: 20px; cursor: pointer;">
+            <label for="turboToggle" style="color: #fff; cursor: pointer; font-size: 0.9rem;">
+                <strong>Turbo Mode</strong> (Faster, slightly lower detail)
+            </label>
+        </div>
+
         <button id="generateBtn" class="btn">Generate Best Outfit</button>
         <button id="changeKeyBtn" class="btn btn-secondary" style="display:none;">Change API Key</button>
 
@@ -384,6 +392,7 @@
         const resultConfidence = document.getElementById('resultConfidence');
         const resultWhy = document.getElementById('resultWhy');
         const outfitItems = document.getElementById('outfitItems');
+        const turboToggle = document.getElementById('turboToggle');
 
         let selectedFile = null;
 
@@ -468,6 +477,7 @@
                 formData.append('image', selectedFile);
                 formData.append('event', eventSelect.value);
                 formData.append('mode', 'single');
+                formData.append('turbo', turboToggle.checked);
 
                 const response = await fetch(`${API_BASE}/ai/outfit`, {
                     method: 'POST',
@@ -537,7 +547,7 @@
             // Set explanation
             resultWhy.textContent = data.why || '';
 
-            // Set outfit items
+            // Set outfit items - DEFENSIVE PARSING
             outfitItems.innerHTML = '';
             const outfit = data.outfit || {};
             for (const [key, value] of Object.entries(outfit)) {
@@ -545,11 +555,20 @@
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'outfit-item';
 
-                    let displayValue = value;
-                    if (typeof value === 'object') {
-                        const name = value.name || '';
+                    let displayValue = '';
+                    if (typeof value === 'string') {
+                        displayValue = value;
+                    } else if (typeof value === 'object' && value !== null) {
+                        // Handle nested object: { name: "...", color: "..." }
+                        const name = value.name || value.type || '';
                         const color = value.color || '';
                         displayValue = color ? `${color} ${name}` : name;
+                        // Fallback to JSON if still empty
+                        if (!displayValue.trim()) {
+                            displayValue = JSON.stringify(value);
+                        }
+                    } else {
+                        displayValue = String(value);
                     }
 
                     itemDiv.innerHTML = `

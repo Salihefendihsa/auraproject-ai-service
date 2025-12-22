@@ -210,27 +210,36 @@ async def _plan_with_gemini(
     
     context_str = "\n".join(context_parts) if context_parts else ""
     
-    prompt = f"""Generate exactly 5 outfit recommendations as JSON.
+    prompt = f"""You are an expert fashion stylist. Generate exactly 5 outfit recommendations as JSON.
 
-User has: {', '.join(detected_context) if detected_context else 'no items detected'}
-Missing: {', '.join(missing_parts) if missing_parts else 'none'}
+CURRENT USER OUTFIT (KEEP THESE - mark as "user"):
+{', '.join(detected_context) if detected_context else 'Cannot see any items clearly'}
+
+ITEMS TO SUGGEST (mark as "suggested"):
+{', '.join(missing_parts) if missing_parts else 'All items visible, suggest alternatives'}
+
+CRITICAL RULES:
+1. MATCH THE STYLE: New items MUST complement the user's current items (color harmony, formality level).
+2. If user has beige pants + white shoes, suggest tops that MATCH beige/white/neutral palette.
+3. Mark user's existing items with "source": "user" (these stay on the photo).
+4. Mark your new suggestions with "source": "suggested" (these will be rendered).
+5. Each outfit must be COMPLETE (top, bottom, outerwear, shoes).
 
 {context_str}
 
-IMPORTANT:
-- Recommend currently trending fashion styles (e.g., quiet luxury, street heritage, monochrome minimal)
-- Consider the occasion/event when selecting formality level
-- Consider weather when recommending layers and fabric weight
-- Prioritize appropriateness while maintaining a "fashion-forward" look
+COLOR HARMONY GUIDE:
+- Beige/cream pairs with: navy, white, brown, olive, burgundy
+- Black pairs with: all colors, especially white, red, bold accents
+- Blue pairs with: white, beige, brown, orange (complementary)
 
 Return JSON format:
 {{"outfits": [
   {{"rank": 1, "style_tag": "...", "items": {{
-    "top": {{"name": "...", "color": "...", "source": "user or suggested"}},
-    "bottom": {{"name": "...", "color": "...", "source": "user or suggested"}},
-    "outerwear": {{"name": "...", "color": "...", "source": "user or suggested"}},
-    "shoes": {{"name": "...", "color": "...", "source": "user or suggested"}}
-  }}, "explanation": "...", "occasion_fit": "how this suits the occasion"}}
+    "top": {{"name": "specific item name", "color": "exact color", "source": "user or suggested"}},
+    "bottom": {{"name": "specific item name", "color": "exact color", "source": "user or suggested"}},
+    "outerwear": {{"name": "specific item name", "color": "exact color", "source": "user or suggested"}},
+    "shoes": {{"name": "specific item name", "color": "exact color", "source": "user or suggested"}}
+  }}, "explanation": "Why this works with the user's items", "occasion_fit": "..."}}
 ]}}
 
 Return ONLY valid JSON."""

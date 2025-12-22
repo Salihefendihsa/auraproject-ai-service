@@ -7,6 +7,7 @@ ControlNet: Optional pose/edge/depth conditioning
 """
 import logging
 import shutil
+import asyncio
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
@@ -283,7 +284,8 @@ class TryOnRenderer:
         outfit: Dict[str, Any],
         output_path: str,
         resolution: int = STAGE1_SIZE,
-        num_inference_steps: Optional[int] = None
+        num_inference_steps: Optional[int] = None,
+        turbo: bool = False
     ) -> bool:
         """
         Render a single outfit try-on with quality improvements.
@@ -346,11 +348,15 @@ class TryOnRenderer:
             
             # Configure inference steps based on device and resolution
             if num_inference_steps is None:
-                # v2.8.0: Increased steps for better quality (approximating VITON)
-                if self._device == "cpu":
-                    num_inference_steps = 25 if resolution <= 512 else 35
+                if turbo:
+                    # Turbo mode: minimal steps for speed (CPU-friendly)
+                    num_inference_steps = 8 if self._device == "cpu" else 15
                 else:
-                    num_inference_steps = 40 if resolution <= 512 else 50
+                    # v2.8.0: Increased steps for better quality (approximating VITON)
+                    if self._device == "cpu":
+                        num_inference_steps = 20 if resolution <= 512 else 30
+                    else:
+                        num_inference_steps = 40 if resolution <= 512 else 50
             
             # Run inpainting with quality settings
             import torch
@@ -406,7 +412,7 @@ class TryOnRenderer:
         outfit: Dict[str, Any],
         original_size: tuple
     ) -> Optional[Image.Image]:
-        """Build combined mask from suggested items only."""
+        """Build combined mask from suggested items (or all items if none suggested)."""
         masks_path = Path(masks_dir)
         combined = None
         
@@ -415,11 +421,19 @@ class TryOnRenderer:
         # Only include clothing regions, NEVER face or hands
         clothing_categories = ["top", "bottom", "outerwear", "shoes"]
         
+        # First pass: check if ANY item is marked as 'suggested'
+        has_suggested = any(
+            items.get(cat, {}).get("source") == "suggested" 
+            for cat in clothing_categories
+        )
+        
         for category in clothing_categories:
             item = items.get(category, {})
             
-            # Only include suggested items (not user-owned)
-            if item.get("source") == "suggested":
+            # Include if: 1) source is 'suggested', OR 2) no suggested items exist (render all)
+            should_include = item.get("source") == "suggested" or not has_suggested
+            
+            if should_include and item:  # item must exist
                 mask_file = masks_path / f"mask_{category}.png"
                 
                 if mask_file.exists():
@@ -431,30 +445,40 @@ class TryOnRenderer:
                         combined = mask_array
                     else:
                         combined = np.maximum(combined, mask_array)
+                    
+                    logger.debug(f"Included mask for {category} (source={item.get('source', 'unknown')})")
         
         if combined is not None:
             # Ensure binary mask (0 or 255)
             combined = (combined > 0).astype(np.uint8) * 255
             return Image.fromarray(combined)
         
+        logger.warning("No masks built - all items may show fallback")
         return None
     
     def _build_clothing_prompt(self, outfit: Dict[str, Any]) -> str:
         """Build clothing-focused prompt from outfit items."""
         items = outfit.get("items", {})
         suggested_parts = []
+        all_parts = []
         
         for category in ["top", "bottom", "outerwear", "shoes"]:
             item = items.get(category, {})
-            if item.get("source") == "suggested":
+            if item:
                 color = item.get("color", "")
                 name = item.get("name", category)
-                suggested_parts.append(f"{color} {name}".strip())
+                part = f"{color} {name}".strip()
+                all_parts.append(part)
+                if item.get("source") == "suggested":
+                    suggested_parts.append(part)
         
-        if not suggested_parts:
+        # Use suggested items if any, otherwise use all items
+        parts_to_use = suggested_parts if suggested_parts else all_parts
+        
+        if not parts_to_use:
             return "A realistic photo of the same person"
         
-        clothing_desc = ", ".join(suggested_parts)
+        clothing_desc = ", ".join(parts_to_use)
         
         return f"A person wearing {clothing_desc}"
     
@@ -482,31 +506,19 @@ class TryOnRenderer:
 
 # ==================== TWO-STAGE RENDERING ====================
 
-def render_all_outfits(
+async def render_all_outfits(
     input_image_path: str,
     masks_dir: str,
     outfits: List[Dict[str, Any]],
     output_dir: str,
     enable_two_stage: bool = True,
-    refine_top_n: int = 2
+    refine_top_n: int = 2,
+    turbo: bool = False
 ) -> Dict[str, Any]:
     """
     Render try-on images for all outfits with two-stage quality.
     
-    v2.2.0 Two-Stage Rendering:
-    - Stage 1: Render all 5 outfits at 512x512 (fast)
-    - Stage 2: Refine top 1-2 outfits at 768x768 (quality)
-    
-    Args:
-        input_image_path: Path to original user image
-        masks_dir: Directory containing segmentation masks
-        outfits: List of outfit dicts
-        output_dir: Directory to save rendered images
-        enable_two_stage: Whether to do two-stage rendering
-        refine_top_n: How many top outfits to refine (1-2)
-        
-    Returns:
-        Dict with render paths and success info
+    v2.9.0: Parallel rendering with asyncio semaphore.
     """
     renderer = TryOnRenderer()
     results = {
@@ -521,30 +533,49 @@ def render_all_outfits(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Stage 1: Render all at 512x512
-    logger.info(f"Stage 1: Rendering {len(outfits[:5])} outfits at {STAGE1_SIZE}x{STAGE1_SIZE}")
+    # v2.9.0: Semaphore to limit concurrency (prevents OOM)
+    # Default to 2 for GPU, 1 for CPU
+    import torch
+    max_concurrency = 2 if torch.cuda.is_available() else 1
+    sem = asyncio.Semaphore(max_concurrency)
     
-    for i, outfit in enumerate(outfits[:5], start=1):
-        render_filename = f"outfit_{i}.png"
-        render_path = output_path / render_filename
-        
-        success = renderer.render_outfit(
-            input_image_path=input_image_path,
-            masks_dir=masks_dir,
-            outfit=outfit,
-            output_path=str(render_path),
-            resolution=STAGE1_SIZE
-        )
-        
-        results["renders"][i] = render_filename
-        
+    async def safe_render(idx, outfit, reso):
+        async with sem:
+            return idx, await asyncio.to_thread(
+                renderer.render_outfit,
+                input_image_path=input_image_path,
+                masks_dir=masks_dir,
+                outfit=outfit,
+                output_path=str(output_path / f"outfit_{idx}.png"),
+                resolution=reso,
+                turbo=turbo
+            )
+
+    # Stage 1: Parallel Render all 5 outfits
+    logger.info(f"Stage 1: Parallel rendering {len(outfits[:5])} outfits (max_concurrency={max_concurrency})")
+    
+    render_tasks = [safe_render(i, outfit, STAGE1_SIZE) for i, outfit in enumerate(outfits[:5], start=1)]
+    render_results = await asyncio.gather(*render_tasks)
+    
+    for i, success in render_results:
+        results["renders"][i] = f"outfit_{i}.png"
         if success:
             results["success_count"] += 1
         else:
             results["fallback_count"] += 1
     
-    # Stage 2: Refine top N outfits at higher resolution
-    if enable_two_stage and results["success_count"] > 0 and refine_top_n > 0:
+    # Stage 2: Refine top N outfits (SKIP IN TURBO)
+    if not turbo and enable_two_stage and results["success_count"] > 0 and refine_top_n > 0:
+        logger.info(f"Stage 2: Parallel refining top {refine_top_n} outfits")
+        refine_tasks = []
+        for i in range(1, min(refine_top_n + 1, 6)):
+            if results["renders"].get(i):
+                refine_tasks.append(safe_render(i, outfits[i-1], STAGE2_SIZE))
+        
+        refine_results = await asyncio.gather(*refine_tasks)
+        for i, success in refine_results:
+            if success:
+                results["refined"].append(i)
         # Refine the first N successful renders (typically rank 1-2)
         refined_count = 0
         

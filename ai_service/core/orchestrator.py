@@ -4,6 +4,7 @@ Single Best Outfit Mode + self-critique pipeline.
 """
 import time
 import logging
+import asyncio
 from typing import Dict, Any, Optional
 
 from ai_service.core.storage import storage
@@ -27,7 +28,8 @@ async def run_pipeline(
     owner_user_id: Optional[str] = None,
     event: Optional[str] = None,
     weather_context: Optional[str] = None,
-    mode: str = "full"  # v2.7.0: full | single
+    mode: str = "full",  # v2.7.0: full | single
+    turbo: bool = False  # v2.9.0: Turbo mode
 ) -> Dict[str, Any]:
     """
     Run the full pipeline with observability tracking.
@@ -74,33 +76,46 @@ async def run_pipeline(
         job_doc["weather_context"] = weather_context
     mongo.insert_job(job_doc)
     
-    # Segmentation
-    try:
-        seg_result = segmenter.segment(image_path, extract_attributes=True)
-        
-        result["detected_clothing"]["top"] = seg_result.get("top", False)
-        result["detected_clothing"]["bottom"] = seg_result.get("bottom", False)
-        result["detected_clothing"]["outerwear"] = seg_result.get("outerwear", False)
-        result["detected_clothing"]["shoes"] = seg_result.get("shoes", False)
-        result["raw_labels"] = seg_result.get("raw_labels", [])
-        result["detected_items"] = seg_result.get("detected_items", {})
-        
-        masks = seg_result.get("masks", {})
-        if masks:
-            saved_masks = segmenter.save_masks(masks, masks_dir)
-            result["masks"] = saved_masks
-        
-        mongo.update_job(job_id, {
-            "detected_clothing": result["detected_clothing"],
-            "attributes": result["detected_items"],
-            "assets.masks": {k: f"/ai/assets/jobs/{job_id}/masks/{v}" for k, v in result["masks"].items()}
-        })
-            
-    except Exception as e:
-        logger.error(f"Segmentation failed: {e}")
-        for cat in ["top", "bottom", "outerwear", "shoes"]:
-            result["detected_items"][cat] = {"present": False}
+    # Step 1: Segmentation & Wardrobe Context (Parallel)
+    logger.info(f"[{job_id}] Starting parallel step: Segmentation + Wardrobe")
     
+    async def get_seg():
+        try:
+            return segmenter.segment(image_path, extract_attributes=True)
+        except Exception as e:
+            logger.error(f"Segmentation failed: {e}")
+            return {"detected_items": {cat: {"present": False} for cat in ["top", "bottom", "outerwear", "shoes"]}}
+
+    async def get_wardrobe():
+        if owner_user_id:
+            return build_wardrobe_context(owner_user_id)
+        return None
+
+    seg_task = asyncio.create_task(asyncio.to_thread(segmenter.segment, image_path, extract_attributes=True))
+    wardrobe_task = asyncio.create_task(asyncio.to_thread(build_wardrobe_context, owner_user_id)) if owner_user_id else asyncio.Future()
+    if not owner_user_id: wardrobe_task.set_result(None)
+
+    seg_result, wardrobe_ctx = await asyncio.gather(seg_task, wardrobe_task)
+    
+    # Process Segmentation Results
+    result["detected_clothing"]["top"] = seg_result.get("top", False)
+    result["detected_clothing"]["bottom"] = seg_result.get("bottom", False)
+    result["detected_clothing"]["outerwear"] = seg_result.get("outerwear", False)
+    result["detected_clothing"]["shoes"] = seg_result.get("shoes", False)
+    result["raw_labels"] = seg_result.get("raw_labels", [])
+    result["detected_items"] = seg_result.get("detected_items", {})
+    
+    masks = seg_result.get("masks", {})
+    if masks:
+        saved_masks = segmenter.save_masks(masks, masks_dir)
+        result["masks"] = saved_masks
+    
+    mongo.update_job(job_id, {
+        "detected_clothing": result["detected_clothing"],
+        "attributes": result["detected_items"],
+        "assets.masks": {k: f"/ai/assets/jobs/{job_id}/masks/{v}" for k, v in result["masks"].items()}
+    })
+
     # Check Cache
     cache_key = None
     tokens, cost_usd = 0, 0.0
@@ -136,21 +151,11 @@ async def run_pipeline(
             
             latency_ms = int((time.time() - start_time) * 1000)
             result["processing_time_ms"] = latency_ms
-            
-            # Log and track metrics
             _track_request(job_id, "cached", True, latency_ms, "success", 0, 0.0)
-            
             return result
-    
-    # LLM Generation
+
+    # Step 2: LLM Generation
     try:
-        # Fetch wardrobe context if user owns items (v2.3)
-        wardrobe_ctx = None
-        if owner_user_id:
-            wardrobe_ctx = build_wardrobe_context(owner_user_id)
-            if wardrobe_ctx:
-                logger.info(f"Wardrobe context added for user {owner_user_id}")
-        
         outfits = await llm_router.plan_outfits(
             detected_items=result["detected_items"],
             user_note=user_note,
@@ -186,16 +191,20 @@ async def run_pipeline(
         mongo.update_job(job_id, {"status": "failed", "error": str(e)})
         return result
     
-    # Try-On Rendering
+    # Step 3: Rendering
     if result["outfits"]:
         try:
             from ai_service.renderer.tryon import render_all_outfits
             
-            render_result = render_all_outfits(
+            # v2.9.0: Skip self-critique if turbo=True or mode='single'
+            skip_critique = turbo or mode == "single"
+            
+            render_result = await render_all_outfits(
                 input_image_path=image_path,
                 masks_dir=masks_dir,
                 outfits=result["outfits"],
-                output_dir=renders_dir
+                output_dir=renders_dir,
+                turbo=turbo
             )
             
             result["renders"] = render_result.get("renders", {})
@@ -210,21 +219,24 @@ async def run_pipeline(
             
             mongo.update_job(job_id, {"assets.renders": render_urls})
             
-            # v2.4.0: Self-Critique Pipeline
-            try:
-                result = await _run_self_critique(
-                    result=result,
-                    job_id=job_id,
-                    image_path=image_path,
-                    renders_dir=renders_dir,
-                    masks_dir=masks_dir,
-                    detected_items=result["detected_items"],
-                    event=event,
-                    weather_context=weather_context,
-                    wardrobe_ctx=wardrobe_ctx
-                )
-            except Exception as critique_error:
-                logger.warning(f"Self-critique failed (continuing): {critique_error}")
+            # v2.4.0: Self-Critique Pipeline (SKIP IF TURBO/SINGLE)
+            if not skip_critique:
+                try:
+                    result = await _run_self_critique(
+                        result=result,
+                        job_id=job_id,
+                        image_path=image_path,
+                        renders_dir=renders_dir,
+                        masks_dir=masks_dir,
+                        detected_items=result["detected_items"],
+                        event=event,
+                        weather_context=weather_context,
+                        wardrobe_ctx=wardrobe_ctx
+                    )
+                except Exception as critique_error:
+                    logger.warning(f"Self-critique failed (continuing): {critique_error}")
+            else:
+                logger.info(f"[{job_id}] Skipping self-critique (mode={mode}, turbo={turbo})")
             
         except Exception as e:
             logger.error(f"Rendering failed: {e}")
@@ -375,16 +387,17 @@ async def _run_self_critique(
     result["outfits"] = updated_outfits
     stats["replaced_count"] = len(worst)
     
-    # Step 4: Re-render only replaced outfits
+    # Step 4: Re-render only replaced outfits in parallel
     renderer = TryOnRenderer()
     
-    for w in worst:
-        idx = w.outfit_index
+    async def render_task(w_obj):
+        idx = w_obj.outfit_index
         if 0 < idx <= len(result["outfits"]):
             outfit = result["outfits"][idx - 1]
             render_path = f"{renders_dir}/outfit_{idx}.png"
             
-            success = renderer.render_outfit(
+            success = await asyncio.to_thread(
+                renderer.render_outfit,
                 input_image_path=image_path,
                 masks_dir=masks_dir,
                 outfit=outfit,
@@ -396,6 +409,9 @@ async def _run_self_critique(
                 outfit["render_url"] = f"/ai/assets/jobs/{job_id}/renders/outfit_{idx}.png"
                 outfit["regenerated"] = True
                 logger.info(f"[{job_id}] Re-rendered outfit {idx}")
+
+    if worst:
+        await asyncio.gather(*[render_task(w) for w in worst])
     
     # Step 5: Re-judge regenerated outfits to get new scores
     new_judge_results = await judge_all_outfits(
