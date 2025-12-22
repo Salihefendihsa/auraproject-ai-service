@@ -274,7 +274,131 @@ def lookbook_rule_match_score(
     return (best_final_score, best_rule_id, best_confidence, best_brand)
 
 
+# ==================== TREND EXPLANATION MINI-LAYER ====================
+# READ-ONLY layer: generates natural-language explanations for outfits.
+# Does NOT affect scoring, ranking, or selection.
+# Uses LLM with low temperature for concise, consistent explanations.
+
+async def generate_trend_explanation(
+    outfit: Dict[str, Any],
+    seed: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None
+) -> Optional[str]:
+    """
+    Generate a 1-2 sentence natural-language explanation for an outfit.
+    
+    This is a READ-ONLY layer that does NOT affect scoring.
+    Uses LLM (OpenAI/Gemini) with temperature ≤ 0.4 and max_tokens ≤ 60.
+    
+    Args:
+        outfit: The outfit dict with matched_lookbook_rule, lookbook_brand, etc.
+        seed: The seed item dict with category, color, style
+        context: Optional dict with event, season info
+    
+    Returns:
+        Explanation string or None if LLM fails (system continues gracefully)
+    """
+    import os
+    
+    try:
+        # Build minimal context for LLM
+        brand = outfit.get("lookbook_brand", "trend-based")
+        rule = outfit.get("matched_lookbook_rule", "general styling")
+        seed_category = seed.get("category", "item")
+        seed_color = seed.get("color", "neutral")
+        event = context.get("event", "everyday") if context else "everyday"
+        season = context.get("season", "current") if context else "current"
+        
+        # Format rule name for readability
+        rule_name = rule.replace("_", " ").title() if rule else "general styling"
+        
+        prompt = f"""Generate a single concise explanation (1-2 sentences, max 40 words) for why this outfit was selected.
+
+Context:
+- Brand influence: {brand}
+- Style rule: {rule_name}
+- Seed item: {seed_category} in {seed_color} (kept fixed)
+- Occasion: {event}
+- Season: {season}
+
+Rules:
+- Mention the brand and style naturally
+- Note the seed item is fixed for coherence
+- No marketing language, emojis, or buzzwords
+- Be factual and brief
+
+Output only the explanation, nothing else."""
+
+        # Try OpenAI first (preferred for consistency)
+        openai_key = os.getenv("OPENAI_API_KEY")
+        if openai_key:
+            import openai
+            client = openai.OpenAI(api_key=openai_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=60
+            )
+            explanation = response.choices[0].message.content.strip()
+            return explanation
+        
+        # Fallback to Gemini
+        gemini_key = os.getenv("GEMINI_API_KEY")
+        if gemini_key:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(
+                prompt,
+                generation_config={"temperature": 0.3, "max_output_tokens": 60}
+            )
+            explanation = response.text.strip()
+            return explanation
+        
+        # No LLM configured
+        logger.debug("No LLM configured for trend explanations")
+        return None
+        
+    except Exception as e:
+        # Silent failure - explanation is optional
+        logger.debug(f"Trend explanation failed (continuing): {e}")
+        return None
+
+
+async def add_trend_explanations(
+    outfits: List[Dict[str, Any]],
+    seed: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Add trend_explanation field to each outfit.
+    
+    This is called AFTER outfit selection is complete.
+    Failures are silent - each outfit gets explanation=None if LLM fails.
+    
+    Args:
+        outfits: List of finalized outfit dicts
+        seed: Seed item dict
+        context: Optional event/season context
+    
+    Returns:
+        Same list with trend_explanation added to each outfit
+    """
+    import asyncio
+    
+    for outfit in outfits:
+        try:
+            explanation = await generate_trend_explanation(outfit, seed, context)
+            outfit["trend_explanation"] = explanation
+        except Exception:
+            outfit["trend_explanation"] = None
+    
+    return outfits
+
+
 # ==================== SEED DETECTION ====================
+
 
 # Category keywords for simple detection
 CATEGORY_KEYWORDS = {

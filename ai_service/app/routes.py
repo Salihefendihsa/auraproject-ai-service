@@ -308,13 +308,40 @@ async def create_outfit_seed(
         seed = result["seed"]
         outfits = result["outfits"]
         
+        # ==================== DEMO POLISH ====================
+        # Ensure response is demo-friendly:
+        # 1. Sort outfits by score descending (should already be sorted)
+        # 2. Trim trend_explanation to max 2 sentences
+        # 3. Ensure render_url is present (empty string if missing)
+        # 4. Add demo_ready flag
+        
+        for outfit in outfits:
+            # Ensure render_url is string (frontend-accessible path)
+            if not outfit.get("render_url"):
+                outfit["render_url"] = ""
+            
+            # Trim trend_explanation to 2 sentences max
+            explanation = outfit.get("trend_explanation")
+            if explanation and isinstance(explanation, str):
+                sentences = explanation.split(". ")
+                if len(sentences) > 2:
+                    outfit["trend_explanation"] = ". ".join(sentences[:2]) + "."
+                outfit["trend_explanation"] = outfit["trend_explanation"].strip()
+            elif not explanation:
+                outfit["trend_explanation"] = None
+        
+        # Ensure consistent sort order (by outfit_score descending)
+        outfits.sort(key=lambda x: -x.get("outfit_score", 0))
+        
         # Compute aggregate tryon_mode from actual render results
         actual_tryon_mode = _compute_aggregate_tryon_mode(outfits)
         
         # Return response contract
+        # demo_ready: true indicates all fields are populated for demo use
         response = {
             "version": "3.0.0",
             "job_id": job_id,
+            "demo_ready": True,  # DEMO flag: all fields ready for frontend
             "seed_locked": True,
             "seed": {
                 "status": "detected",

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA Demo - Outfit Seed Pipeline</title>
+    <style>
+        /* ==================== BASE STYLES ==================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+
+        h1 span {
+            color: #9333ea;
+        }
+
+        /* ==================== SEED UPLOADER COMPONENT ==================== */
+        .seed-uploader {
+            max-width: 500px;
+            margin: 0 auto 40px;
+            background: #1a1a1a;
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid #333;
+        }
+
+        .seed-uploader h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #ccc;
+        }
+
+        .form-row {
+            margin-bottom: 16px;
+        }
+
+        .form-row label {
+            display: block;
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+
+        .form-row input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px dashed #444;
+            border-radius: 8px;
+            color: #fff;
+        }
+
+        .form-row select {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #9333ea, #6366f1);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ==================== SEED CARD COMPONENT ==================== */
+        .seed-card {
+            max-width: 300px;
+            margin: 0 auto 40px;
+            text-align: center;
+        }
+
+        .seed-card img {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid #9333ea;
+        }
+
+        .seed-badge {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 6px 16px;
+            background: #9333ea;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .seed-info {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        /* ==================== OUTFIT GRID COMPONENT ==================== */
+        .outfit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ==================== OUTFIT CARD ==================== */
+        .outfit-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .outfit-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #222;
+        }
+
+        .outfit-rank {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* Brand badge colors - mapped from lookbook_brand */
+        .brand-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-badge.zara {
+            background: #000;
+            color: #fff;
+            border: 1px solid #444;
+        }
+
+        .brand-badge.hm {
+            background: #cc0000;
+            color: #fff;
+        }
+
+        .outfit-image {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            background: #0a0a0a;
+        }
+
+        .outfit-image-placeholder {
+            width: 100%;
+            height: 320px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+            color: #444;
+            font-size: 14px;
+        }
+
+        .outfit-card-body {
+            padding: 16px;
+        }
+
+        /* Try-on mode labels - mapped from tryon_mode */
+        .tryon-label {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .tryon-label.full {
+            background: #166534;
+            color: #86efac;
+        }
+
+        .tryon-label.partial {
+            background: #1e40af;
+            color: #93c5fd;
+        }
+
+        .tryon-label.partial_fallback {
+            background: #9a3412;
+            color: #fed7aa;
+        }
+
+        .tryon-label.mock {
+            background: #374151;
+            color: #9ca3af;
+        }
+
+        /* Trend explanation - mapped from trend_explanation */
+        .trend-explanation {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+            font-style: italic;
+            min-height: 40px;
+        }
+
+        .trend-explanation.empty {
+            color: #444;
+            font-style: normal;
+        }
+
+        .outfit-score {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .score-bar {
+            flex: 1;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9333ea, #6366f1);
+            border-radius: 3px;
+        }
+
+        .score-value {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* ==================== LOADING & ERROR STATES ==================== */
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #9333ea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #2d1f1f;
+            border: 1px solid #7f1d1d;
+            border-radius: 12px;
+            text-align: center;
+            color: #fca5a5;
+        }
+
+        /* ==================== RESULTS CONTAINER ==================== */
+        .results-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .results-header h2 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+
+        .results-meta {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1><span>AURA</span> Outfit Demo</h1>
+
+    <!-- ==================== SEED UPLOADER COMPONENT ==================== -->
+    <div id="seedUploader" class="seed-uploader">
+        <h2>Upload Seed Image</h2>
+        <form id="seedForm">
+            <div class="form-row">
+                <label for="seedImage">Seed Image (required)</label>
+                <input type="file" id="seedImage" name="seed_image" accept="image/*" required>
+            </div>
+            <div class="form-row">
+                <label for="gender">Gender (required)</label>
+                <select id="gender" name="gender" required>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="event">Event (optional)</label>
+                <select id="event" name="event">
+                    <option value="">-- Select --</option>
+                    <option value="work">Work</option>
+                    <option value="date">Date</option>
+                    <option value="party">Party</option>
+                    <option value="casual">Casual</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="mode">Try-On Mode</label>
+                <select id="mode" name="mode">
+                    <option value="mock">Mock (Preview Only)</option>
+                    <option value="partial_tryon">Partial Try-On (Upper Body)</option>
+                    <option value="full_tryon">Full Try-On</option>
+                </select>
+            </div>
+            <button type="submit" class="submit-btn" id="submitBtn">Generate Outfits</button>
+        </form>
+    </div>
+
+    <!-- ==================== LOADING STATE ==================== -->
+    <div id="loadingState" class="loading hidden">
+        <div class="spinner"></div>
+        <p>Generating outfits...</p>
+    </div>
+
+    <!-- ==================== ERROR STATE ==================== -->
+    <div id="errorState" class="error hidden">
+        <p id="errorMessage">An error occurred</p>
+    </div>
+
+    <!-- ==================== RESULTS CONTAINER ==================== -->
+    <div id="resultsContainer" class="hidden">
+        <!-- Seed Card -->
+        <div id="seedCard" class="seed-card">
+            <img id="seedPreview" src="" alt="Seed Item">
+            <div class="seed-badge">🔒 Seed Locked</div>
+            <div class="seed-info" id="seedInfo"></div>
+        </div>
+
+        <!-- Results Header -->
+        <div class="results-header">
+            <h2>Generated Outfits</h2>
+            <div class="results-meta" id="resultsMeta"></div>
+        </div>
+
+        <!-- Outfit Grid -->
+        <div id="outfitGrid" class="outfit-grid"></div>
+    </div>
+
+    <script>
+        // ==================== API CONFIGURATION ====================
+        const API_URL = 'http://localhost:8000/ai/outfit-seed';
+
+        // ==================== DOM ELEMENTS ====================
+        const seedForm = document.getElementById('seedForm');
+        const seedUploader = document.getElementById('seedUploader');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const seedPreview = document.getElementById('seedPreview');
+        const seedInfo = document.getElementById('seedInfo');
+        const resultsMeta = document.getElementById('resultsMeta');
+        const outfitGrid = document.getElementById('outfitGrid');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // ==================== STATE MANAGEMENT ====================
+        let selectedFile = null;
+
+        document.getElementById('seedImage').addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+        });
+
+        // ==================== FORM SUBMISSION ====================
+        seedForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedFile) {
+                showError('Please select a seed image');
+                return;
+            }
+
+            // Build FormData - matches POST /ai/outfit-seed contract
+            const formData = new FormData();
+            formData.append('seed_image', selectedFile);
+            formData.append('gender', document.getElementById('gender').value);
+
+            const event = document.getElementById('event').value;
+            if (event) formData.append('event', event);
+
+            formData.append('mode', document.getElementById('mode').value);
+
+            // Show loading, hide others
+            showLoading();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                renderResults(data);
+
+            } catch (err) {
+                showError(err.message || 'Failed to generate outfits');
+            }
+        });
+
+        // ==================== UI STATE FUNCTIONS ====================
+        function showLoading() {
+            seedUploader.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+            resultsContainer.classList.add('hidden');
+            submitBtn.disabled = true;
+        }
+
+        function showError(message) {
+            loadingState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+            errorMessage.textContent = message;
+            resultsContainer.classList.add('hidden');
+            seedUploader.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
+
+        function showResults() {
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            resultsContainer.classList.remove('hidden');
+            seedUploader.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
+
+        // ==================== RENDER RESULTS ====================
+        // Maps backend response to UI components
+        function renderResults(data) {
+            // Render Seed Card
+            // - Uses local file preview since seed image was uploaded
+            if (selectedFile) {
+                seedPreview.src = URL.createObjectURL(selectedFile);
+            }
+
+            // Seed info from response.seed
+            const seed = data.seed || {};
+            seedInfo.textContent = `${seed.category || 'Item'} • ${seed.color || 'Detected'} • Confidence: ${Math.round((seed.detection_confidence || 0.9) * 100)}%`;
+
+            // Results meta
+            resultsMeta.textContent = `Mode: ${data.tryon_mode || 'mock'} • Subject: ${data.subject_type || 'mannequin'} • Job: ${data.job_id || 'N/A'}`;
+
+            // Render Outfit Grid
+            // - Maps each outfit to an outfit card
+            outfitGrid.innerHTML = '';
+
+            const outfits = data.outfits || [];
+            outfits.forEach((outfit, index) => {
+                const card = createOutfitCard(outfit, index + 1);
+                outfitGrid.appendChild(card);
+            });
+
+            showResults();
+        }
+
+        // ==================== CREATE OUTFIT CARD ====================
+        // Maps outfit object to DOM element
+        function createOutfitCard(outfit, fallbackRank) {
+            const card = document.createElement('div');
+            card.className = 'outfit-card';
+
+            // Header: Rank + Brand Badge
+            // - outfit.rank: Display rank
+            // - outfit.lookbook_brand: "Zara" or "H&M"
+            const rank = outfit.rank || fallbackRank;
+            const brand = outfit.lookbook_brand || 'Unknown';
+            const brandClass = brand.toLowerCase().replace('&', '');
+
+            // Try-on mode label
+            // - outfit.tryon_mode: full | partial | partial_fallback | mock
+            const tryonMode = outfit.tryon_mode || 'mock';
+            const tryonLabels = {
+                'full': 'Full Try-On',
+                'partial': 'Upper Body',
+                'partial_fallback': 'Fallback Render',
+                'mock': 'Preview'
+            };
+
+            // Trend explanation
+            // - outfit.trend_explanation: string | null
+            const explanation = outfit.trend_explanation || null;
+
+            // Score (0-1 range)
+            const score = outfit.outfit_score || 0;
+            const scorePercent = Math.round(score * 100);
+
+            // Render URL
+            // - outfit.render_url: path to rendered image
+            const renderUrl = outfit.render_url ? `http://localhost:8000${outfit.render_url}` : null;
+
+            card.innerHTML = `
+                <div class="outfit-card-header">
+                    <span class="outfit-rank">#${rank}</span>
+                    <span class="brand-badge ${brandClass}">${brand}</span>
+                </div>
+                ${renderUrl
+                    ? `<img class="outfit-image" src="${renderUrl}" alt="Outfit ${rank}" onerror="this.parentNode.querySelector('.outfit-image').style.display='none'; this.parentNode.querySelector('.outfit-image-placeholder')?.classList.remove('hidden');">`
+                    : `<div class="outfit-image-placeholder">No render available</div>`
+                }
+                <div class="outfit-card-body">
+                    <span class="tryon-label ${tryonMode}">${tryonLabels[tryonMode] || tryonMode}</span>
+                    <p class="trend-explanation ${explanation ? '' : 'empty'}">
+                        ${explanation || 'Trend explanation not available'}
+                    </p>
+                    <div class="outfit-score">
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: ${scorePercent}%"></div>
+                        </div>
+                        <span class="score-value">${scorePercent}%</span>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+    </script>
+</body>
+
+</html>
