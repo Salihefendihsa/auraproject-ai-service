@@ -31,6 +31,20 @@
             color: #9333ea;
         }
 
+        /* Version badge - shows baseline version from API */
+        .version-badge {
+            display: inline-block;
+            margin-left: 12px;
+            padding: 4px 10px;
+            background: rgba(147, 51, 234, 0.2);
+            border: 1px solid rgba(147, 51, 234, 0.4);
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #c084fc;
+            vertical-align: middle;
+        }
+
         /* ==================== SEED UPLOADER COMPONENT ==================== */
         .seed-uploader {
             max-width: 500px;
@@ -87,22 +101,61 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.1s;
         }
 
-        .submit-btn:hover {
+        .submit-btn:hover:not(:disabled) {
             opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         .submit-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+            background: #444;
         }
 
-        /* ==================== SEED CARD COMPONENT ==================== */
+        /* Loading indicator inside button */
+        .submit-btn.loading::after {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-left: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+
+        /* ==================== SEED SECTION - VISUALLY DOMINANT ==================== 
+           WHY: The seed item is the central input; users must immediately see 
+           that their item is "locked" and everything else revolves around it */
+        .seed-section {
+            max-width: 600px;
+            margin: 0 auto 50px;
+            padding: 24px;
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(99, 102, 241, 0.05));
+            border: 2px solid rgba(147, 51, 234, 0.4);
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .seed-section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #9333ea;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
         .seed-card {
-            max-width: 300px;
-            margin: 0 auto 40px;
+            display: inline-block;
             text-align: center;
         }
 
@@ -111,23 +164,41 @@
             height: 200px;
             object-fit: cover;
             border-radius: 12px;
-            border: 2px solid #9333ea;
+            border: 3px solid #9333ea;
+            box-shadow: 0 0 30px rgba(147, 51, 234, 0.3);
         }
 
+        /* WHY: Lock badge must be visually prominent - users need confidence 
+           their seed won't change across outfit suggestions */
         .seed-badge {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 6px 16px;
-            background: #9333ea;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 16px;
+            padding: 8px 20px;
+            background: linear-gradient(135deg, #9333ea, #7c3aed);
             border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+        }
+
+        .seed-badge .lock-icon {
+            font-size: 16px;
         }
 
         .seed-info {
-            margin-top: 8px;
+            margin-top: 12px;
             font-size: 13px;
             color: #888;
+        }
+
+        .seed-divider {
+            max-width: 800px;
+            margin: 0 auto 40px;
+            border: none;
+            border-top: 1px solid #333;
         }
 
         /* ==================== OUTFIT GRID COMPONENT ==================== */
@@ -145,6 +216,12 @@
             border-radius: 12px;
             overflow: hidden;
             border: 1px solid #333;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .outfit-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         }
 
         .outfit-card-header {
@@ -161,7 +238,10 @@
             color: #fff;
         }
 
-        /* Brand badge colors - mapped from lookbook_brand */
+        /* ==================== BRAND BADGE COLORS ==================== 
+           WHY: Subtle differentiation helps users understand source without 
+           overwhelming the visual hierarchy. Zara is neutral (backbone), 
+           H&M is warm (casual), Bershka has accent (youth/street) */
         .brand-badge {
             padding: 4px 10px;
             border-radius: 12px;
@@ -171,15 +251,29 @@
             letter-spacing: 0.5px;
         }
 
+        /* Zara: Neutral/Minimal - black with subtle border */
         .brand-badge.zara {
             background: #000;
             color: #fff;
             border: 1px solid #444;
         }
 
+        /* H&M: Soft/Casual - warm red, approachable */
         .brand-badge.hm {
             background: #cc0000;
             color: #fff;
+        }
+
+        /* Bershka: Street/Accent - vibrant lime, youth energy */
+        .brand-badge.bershka {
+            background: #84cc16;
+            color: #000;
+        }
+
+        /* Unknown brand fallback */
+        .brand-badge.unknown {
+            background: #374151;
+            color: #9ca3af;
         }
 
         .outfit-image {
@@ -204,14 +298,24 @@
             padding: 16px;
         }
 
-        /* Try-on mode labels - mapped from tryon_mode */
+        /* ==================== TRY-ON MODE LABELS ==================== 
+           WHY: Clear status communication - users need to know exactly 
+           what type of visualization they're seeing */
+        .tryon-label-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
         .tryon-label {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             padding: 4px 10px;
             border-radius: 6px;
             font-size: 11px;
             font-weight: 600;
-            margin-bottom: 10px;
         }
 
         .tryon-label.full {
@@ -224,6 +328,8 @@
             color: #93c5fd;
         }
 
+        /* WHY: partial_fallback needs warning emphasis - it means 
+           the full try-on failed and this is a backup render */
         .tryon-label.partial_fallback {
             background: #9a3412;
             color: #fed7aa;
@@ -234,22 +340,97 @@
             color: #9ca3af;
         }
 
-        /* Trend explanation - mapped from trend_explanation */
+        /* Warning icon for fallback states */
+        .warning-icon {
+            font-size: 12px;
+            cursor: help;
+        }
+
+        /* Tooltip for fallback warning */
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .tooltip-wrapper .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 12px;
+            background: #000;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 400;
+            border-radius: 6px;
+            white-space: nowrap;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: opacity 0.2s, visibility 0.2s;
+            z-index: 100;
+        }
+
+        .tooltip-wrapper .tooltip-text::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #000;
+        }
+
+        .tooltip-wrapper:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* ==================== TREND EXPLANATION ==================== 
+           WHY: Truncate long explanations to maintain card consistency,
+           but allow expansion on hover so full context is accessible */
+        .trend-section {
+            margin-bottom: 12px;
+        }
+
+        .trend-label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .trend-explanation {
             font-size: 13px;
             color: #888;
             line-height: 1.5;
             font-style: italic;
+            /* Truncate to 2 lines with ellipsis */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
             min-height: 40px;
+            max-height: 40px;
+            cursor: default;
+            transition: max-height 0.3s, -webkit-line-clamp 0.3s;
+        }
+
+        /* Expand on hover for full explanation */
+        .trend-explanation:hover {
+            -webkit-line-clamp: unset;
+            max-height: 200px;
         }
 
         .trend-explanation.empty {
-            color: #444;
+            color: #555;
             font-style: normal;
         }
 
         .outfit-score {
-            margin-top: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -267,11 +448,14 @@
             height: 100%;
             background: linear-gradient(90deg, #9333ea, #6366f1);
             border-radius: 3px;
+            transition: width 0.3s ease;
         }
 
         .score-value {
             font-size: 12px;
             color: #888;
+            min-width: 36px;
+            text-align: right;
         }
 
         /* ==================== LOADING & ERROR STATES ==================== */
@@ -296,6 +480,11 @@
             }
         }
 
+        .loading-text {
+            color: #888;
+            font-size: 14px;
+        }
+
         .error {
             max-width: 500px;
             margin: 0 auto;
@@ -305,6 +494,31 @@
             border-radius: 12px;
             text-align: center;
             color: #fca5a5;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .error-message {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .error .retry-btn {
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #7f1d1d;
+            border-radius: 8px;
+            color: #fca5a5;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .error .retry-btn:hover {
+            background: rgba(127, 29, 29, 0.3);
         }
 
         /* ==================== RESULTS CONTAINER ==================== */
@@ -325,13 +539,13 @@
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
     </style>
 </head>
 
 <body>
-    <h1><span>AURA</span> Outfit Demo</h1>
+    <h1><span>AURA</span> Outfit Demo <span id="versionBadge" class="version-badge hidden">v1.0</span></h1>
 
     <!-- ==================== SEED UPLOADER COMPONENT ==================== -->
     <div id="seedUploader" class="seed-uploader">
@@ -373,22 +587,37 @@
     <!-- ==================== LOADING STATE ==================== -->
     <div id="loadingState" class="loading hidden">
         <div class="spinner"></div>
-        <p>Generating outfits...</p>
+        <p class="loading-text">Generating outfits...</p>
+        <p class="loading-text" style="margin-top: 8px; font-size: 12px; color: #555;">This may take a few seconds</p>
     </div>
 
     <!-- ==================== ERROR STATE ==================== -->
     <div id="errorState" class="error hidden">
-        <p id="errorMessage">An error occurred</p>
+        <p class="error-title">⚠️ Something went wrong</p>
+        <p class="error-message" id="errorMessage">An error occurred</p>
+        <button class="retry-btn" onclick="resetForm()">Try Again</button>
     </div>
 
     <!-- ==================== RESULTS CONTAINER ==================== -->
     <div id="resultsContainer" class="hidden">
-        <!-- Seed Card -->
-        <div id="seedCard" class="seed-card">
-            <img id="seedPreview" src="" alt="Seed Item">
-            <div class="seed-badge">🔒 Seed Locked</div>
-            <div class="seed-info" id="seedInfo"></div>
-        </div>
+        <!-- WHY: Seed section is separated and visually dominant to reinforce 
+             that this item is LOCKED and central to all outfit suggestions -->
+        <section class="seed-section">
+            <div class="seed-section-title">
+                <span>🎯</span>
+                <span>Your Seed Item</span>
+            </div>
+            <div id="seedCard" class="seed-card">
+                <img id="seedPreview" src="" alt="Seed Item">
+                <div class="seed-badge">
+                    <span class="lock-icon">🔒</span>
+                    <span>SEED LOCKED</span>
+                </div>
+                <div class="seed-info" id="seedInfo"></div>
+            </div>
+        </section>
+
+        <hr class="seed-divider">
 
         <!-- Results Header -->
         <div class="results-header">
@@ -416,8 +645,9 @@
         const resultsMeta = document.getElementById('resultsMeta');
         const outfitGrid = document.getElementById('outfitGrid');
         const submitBtn = document.getElementById('submitBtn');
+        const versionBadge = document.getElementById('versionBadge');
 
-        // ==================== STATE MANAGEMENT ====================
+        // ==================== STATE ====================
         let selectedFile = null;
 
         document.getElementById('seedImage').addEventListener('change', (e) => {
@@ -443,7 +673,7 @@
 
             formData.append('mode', document.getElementById('mode').value);
 
-            // Show loading, hide others
+            // Show loading state, disable button
             showLoading();
 
             try {
@@ -472,6 +702,7 @@
             errorState.classList.add('hidden');
             resultsContainer.classList.add('hidden');
             submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
         }
 
         function showError(message) {
@@ -479,8 +710,9 @@
             errorState.classList.remove('hidden');
             errorMessage.textContent = message;
             resultsContainer.classList.add('hidden');
-            seedUploader.classList.remove('hidden');
+            seedUploader.classList.add('hidden');
             submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
         }
 
         function showResults() {
@@ -489,28 +721,46 @@
             resultsContainer.classList.remove('hidden');
             seedUploader.classList.remove('hidden');
             submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+
+        function resetForm() {
+            errorState.classList.add('hidden');
+            seedUploader.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
         }
 
         // ==================== RENDER RESULTS ====================
-        // Maps backend response to UI components
         function renderResults(data) {
+            // Show baseline version from API response
+            if (data.baseline_version) {
+                versionBadge.textContent = data.baseline_version;
+                versionBadge.classList.remove('hidden');
+            }
+
             // Render Seed Card
-            // - Uses local file preview since seed image was uploaded
             if (selectedFile) {
                 seedPreview.src = URL.createObjectURL(selectedFile);
             }
 
-            // Seed info from response.seed
+            // Seed info from response
             const seed = data.seed || {};
-            seedInfo.textContent = `${seed.category || 'Item'} • ${seed.color || 'Detected'} • Confidence: ${Math.round((seed.detection_confidence || 0.9) * 100)}%`;
+            const category = seed.category || 'Item';
+            const color = seed.color || 'Detected';
+            const confidence = Math.round((seed.confidence || seed.detection_confidence || 0.9) * 100);
+            seedInfo.textContent = `${capitalize(category)} • ${capitalize(color)} • ${confidence}% match`;
 
             // Results meta
-            resultsMeta.textContent = `Mode: ${data.tryon_mode || 'mock'} • Subject: ${data.subject_type || 'mannequin'} • Job: ${data.job_id || 'N/A'}`;
+            const tryonMode = data.tryon_mode || 'mock';
+            const subjectType = data.subject_type || 'mannequin';
+            resultsMeta.innerHTML = `
+                <span>Mode: <strong>${formatTryonMode(tryonMode)}</strong></span> • 
+                <span>Subject: <strong>${capitalize(subjectType)}</strong></span>
+            `;
 
             // Render Outfit Grid
-            // - Maps each outfit to an outfit card
             outfitGrid.innerHTML = '';
-
             const outfits = data.outfits || [];
             outfits.forEach((outfit, index) => {
                 const card = createOutfitCard(outfit, index + 1);
@@ -521,38 +771,32 @@
         }
 
         // ==================== CREATE OUTFIT CARD ====================
-        // Maps outfit object to DOM element
         function createOutfitCard(outfit, fallbackRank) {
             const card = document.createElement('div');
             card.className = 'outfit-card';
 
-            // Header: Rank + Brand Badge
-            // - outfit.rank: Display rank
-            // - outfit.lookbook_brand: "Zara" or "H&M"
+            // Header data
             const rank = outfit.rank || fallbackRank;
             const brand = outfit.lookbook_brand || 'Unknown';
-            const brandClass = brand.toLowerCase().replace('&', '');
+            const brandClass = getBrandClass(brand);
 
-            // Try-on mode label
-            // - outfit.tryon_mode: full | partial | partial_fallback | mock
+            // Try-on mode
             const tryonMode = outfit.tryon_mode || 'mock';
-            const tryonLabels = {
-                'full': 'Full Try-On',
-                'partial': 'Upper Body',
-                'partial_fallback': 'Fallback Render',
-                'mock': 'Preview'
-            };
+            const isFallback = tryonMode === 'partial_fallback';
 
-            // Trend explanation
-            // - outfit.trend_explanation: string | null
-            const explanation = outfit.trend_explanation || null;
+            // Trend explanation with null handling
+            // WHY: Empty explanations should show a clear message, not just be blank
+            let explanation = outfit.trend_explanation;
+            const hasExplanation = explanation && explanation.trim().length > 0;
+            if (!hasExplanation) {
+                explanation = 'Trend data unavailable';
+            }
 
-            // Score (0-1 range)
+            // Score
             const score = outfit.outfit_score || 0;
             const scorePercent = Math.round(score * 100);
 
             // Render URL
-            // - outfit.render_url: path to rendered image
             const renderUrl = outfit.render_url ? `http://localhost:8000${outfit.render_url}` : null;
 
             card.innerHTML = `
@@ -561,14 +805,29 @@
                     <span class="brand-badge ${brandClass}">${brand}</span>
                 </div>
                 ${renderUrl
-                    ? `<img class="outfit-image" src="${renderUrl}" alt="Outfit ${rank}" onerror="this.parentNode.querySelector('.outfit-image').style.display='none'; this.parentNode.querySelector('.outfit-image-placeholder')?.classList.remove('hidden');">`
-                    : `<div class="outfit-image-placeholder">No render available</div>`
+                    ? `<img class="outfit-image" src="${renderUrl}" alt="Outfit ${rank}" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">`
+                    : ''
                 }
+                <div class="outfit-image-placeholder ${renderUrl ? 'hidden' : ''}">No render available</div>
                 <div class="outfit-card-body">
-                    <span class="tryon-label ${tryonMode}">${tryonLabels[tryonMode] || tryonMode}</span>
-                    <p class="trend-explanation ${explanation ? '' : 'empty'}">
-                        ${explanation || 'Trend explanation not available'}
-                    </p>
+                    <div class="tryon-label-row">
+                        ${isFallback
+                    ? `<div class="tooltip-wrapper">
+                                   <span class="tryon-label ${tryonMode}">
+                                       <span class="warning-icon">⚠️</span>
+                                       FALLBACK
+                                   </span>
+                                   <span class="tooltip-text">Full try-on failed, using partial render</span>
+                               </div>`
+                    : `<span class="tryon-label ${tryonMode}">${formatTryonLabel(tryonMode)}</span>`
+                }
+                    </div>
+                    <div class="trend-section">
+                        <div class="trend-label">Why this outfit?</div>
+                        <p class="trend-explanation ${hasExplanation ? '' : 'empty'}" title="${hasExplanation ? explanation : ''}">
+                            ${explanation}
+                        </p>
+                    </div>
                     <div class="outfit-score">
                         <div class="score-bar">
                             <div class="score-fill" style="width: ${scorePercent}%"></div>
@@ -579,6 +838,42 @@
             `;
 
             return card;
+        }
+
+        // ==================== HELPER FUNCTIONS ====================
+        function capitalize(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        function getBrandClass(brand) {
+            if (!brand) return 'unknown';
+            const normalized = brand.toLowerCase().replace(/&/g, '').replace(/\s+/g, '');
+            if (normalized === 'zara') return 'zara';
+            if (normalized === 'hm' || normalized === 'h&m') return 'hm';
+            if (normalized === 'bershka') return 'bershka';
+            return 'unknown';
+        }
+
+        function formatTryonMode(mode) {
+            const modes = {
+                'full': 'Full Try-On',
+                'partial': 'Partial',
+                'partial_fallback': 'Fallback',
+                'mock': 'Preview',
+                'mixed': 'Mixed'
+            };
+            return modes[mode] || mode;
+        }
+
+        function formatTryonLabel(mode) {
+            const labels = {
+                'full': 'FULL',
+                'partial': 'PARTIAL',
+                'partial_fallback': 'FALLBACK',
+                'mock': 'MOCK'
+            };
+            return labels[mode] || mode.toUpperCase();
         }
     </script>
 </body>

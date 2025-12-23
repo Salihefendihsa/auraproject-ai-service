@@ -2,6 +2,16 @@
 Settings Module (v1.4.1)
 Centralized configuration from environment variables.
 """
+
+# ============================================================================
+# DEMO BASELINE FREEZE v1.0
+# ============================================================================
+# This version is a HARD FREEZE as of 2024-12-23.
+# All logic marked with "DO NOT MODIFY BASELINE LOGIC BELOW" is locked.
+# Changes require explicit approval and versioning.
+# ============================================================================
+DEMO_BASELINE_VERSION = "v1.0"
+
 import os
 import logging
 from dataclasses import dataclass
@@ -24,6 +34,9 @@ class Settings:
     llm_secondary: str = "gemini"
     llm_daily_limit: int = 200
     
+    # Feature Flags
+    user_photo_tryon_enabled: bool = False  # ISOLATED EXTENSION: User photo try-on mode
+    
     @classmethod
     def from_env(cls) -> "Settings":
         """Load settings from environment variables."""
@@ -37,6 +50,9 @@ class Settings:
             llm_primary=os.getenv("AURA_LLM_PRIMARY", "openai").lower(),
             llm_secondary=os.getenv("AURA_LLM_SECONDARY", "gemini").lower(),
             llm_daily_limit=int(os.getenv("AURA_LLM_DAILY_LIMIT", "200")),
+            
+            # Feature Flags
+            user_photo_tryon_enabled=os.getenv("AURA_USER_PHOTO_TRYON_ENABLED", "false").lower() == "true",
         )
     
     def has_openai(self) -> bool:

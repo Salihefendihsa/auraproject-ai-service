@@ -1,0 +1,248 @@
+{
+    "brand": "Bershka",
+    "season": "fall_winter",
+    "year": 2024,
+    "description": "Gen Z street style and youth-centric outfit rules from Bershka Fall/Winter 2024. Adds Y2K-inspired diversity without dominating rankings. Influences ranking ONLY, never overrides seed lock.",
+    "brand_weight": 0.6,
+    "rules": [
+        {
+            "rule_id": "oversize_street_cargo",
+            "name": "Oversize Street Cargo",
+            "style_tags": [
+                "streetwear",
+                "gen_z",
+                "urban",
+                "oversized"
+            ],
+            "preferred_colors": [
+                "black",
+                "gray",
+                "olive",
+                "beige"
+            ],
+            "composition": {
+                "top": "oversized",
+                "bottom": "cargo",
+                "outerwear": "puffer",
+                "shoes": "chunky"
+            },
+            "keywords": {
+                "top": [
+                    "hoodie",
+                    "oversize",
+                    "sweatshirt",
+                    "graphic"
+                ],
+                "bottom": [
+                    "cargo",
+                    "wide-leg",
+                    "baggy",
+                    "pants"
+                ],
+                "outerwear": [
+                    "puffer",
+                    "bomber",
+                    "oversized"
+                ],
+                "shoes": [
+                    "chunky",
+                    "sneakers",
+                    "platform"
+                ]
+            },
+            "confidence": 0.55
+        },
+        {
+            "rule_id": "y2k_low_rise_revival",
+            "name": "Y2K Low Rise Revival",
+            "style_tags": [
+                "y2k",
+                "gen_z",
+                "retro",
+                "nostalgic"
+            ],
+            "preferred_colors": [
+                "pink",
+                "white",
+                "light_blue",
+                "black"
+            ],
+            "composition": {
+                "top": "cropped",
+                "bottom": "low_rise",
+                "outerwear": "short",
+                "shoes": "platform"
+            },
+            "keywords": {
+                "top": [
+                    "crop",
+                    "baby",
+                    "fitted",
+                    "tank"
+                ],
+                "bottom": [
+                    "low-rise",
+                    "flare",
+                    "wide",
+                    "pants"
+                ],
+                "outerwear": [
+                    "cardigan",
+                    "cropped",
+                    "shrug"
+                ],
+                "shoes": [
+                    "platform",
+                    "sneakers",
+                    "boots"
+                ]
+            },
+            "confidence": 0.48
+        },
+        {
+            "rule_id": "high_contrast_statement",
+            "name": "High Contrast Statement",
+            "style_tags": [
+                "bold",
+                "streetwear",
+                "statement",
+                "edgy"
+            ],
+            "preferred_colors": [
+                "black",
+                "white",
+                "red",
+                "pink"
+            ],
+            "composition": {
+                "top": "graphic",
+                "bottom": "contrasting",
+                "outerwear": "statement",
+                "shoes": "bold"
+            },
+            "keywords": {
+                "top": [
+                    "graphic",
+                    "tee",
+                    "print",
+                    "logo"
+                ],
+                "bottom": [
+                    "jeans",
+                    "leather",
+                    "vinyl",
+                    "contrast"
+                ],
+                "outerwear": [
+                    "leather",
+                    "biker",
+                    "bomber",
+                    "statement"
+                ],
+                "shoes": [
+                    "boots",
+                    "chunky",
+                    "platform",
+                    "docs"
+                ]
+            },
+            "confidence": 0.50
+        },
+        {
+            "rule_id": "loose_layers_street",
+            "name": "Loose Layers Street",
+            "style_tags": [
+                "streetwear",
+                "layered",
+                "relaxed",
+                "urban"
+            ],
+            "preferred_colors": [
+                "gray",
+                "black",
+                "navy",
+                "brown"
+            ],
+            "composition": {
+                "top": "layered",
+                "bottom": "loose",
+                "outerwear": "oversized",
+                "shoes": "street"
+            },
+            "keywords": {
+                "top": [
+                    "long-sleeve",
+                    "layered",
+                    "shirt",
+                    "tee"
+                ],
+                "bottom": [
+                    "baggy",
+                    "loose",
+                    "jeans",
+                    "cargo"
+                ],
+                "outerwear": [
+                    "jacket",
+                    "overshirt",
+                    "flannel",
+                    "open"
+                ],
+                "shoes": [
+                    "sneakers",
+                    "skate",
+                    "trainers"
+                ]
+            },
+            "confidence": 0.52
+        },
+        {
+            "rule_id": "sporty_tech_utility",
+            "name": "Sporty Tech Utility",
+            "style_tags": [
+                "techwear",
+                "sporty",
+                "utility",
+                "functional"
+            ],
+            "preferred_colors": [
+                "black",
+                "gray",
+                "olive",
+                "charcoal"
+            ],
+            "composition": {
+                "top": "technical",
+                "bottom": "utility",
+                "outerwear": "functional",
+                "shoes": "running"
+            },
+            "keywords": {
+                "top": [
+                    "tech",
+                    "zip",
+                    "performance",
+                    "mesh"
+                ],
+                "bottom": [
+                    "cargo",
+                    "joggers",
+                    "utility",
+                    "tech"
+                ],
+                "outerwear": [
+                    "windbreaker",
+                    "shell",
+                    "technical"
+                ],
+                "shoes": [
+                    "running",
+                    "sneakers",
+                    "athletic",
+                    "chunky"
+                ]
+            },
+            "confidence": 0.45
+        }
+    ]
+}

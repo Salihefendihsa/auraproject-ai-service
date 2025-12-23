@@ -228,7 +228,8 @@ def validate_image_upload_sync(content: bytes, content_type: Optional[str]) -> I
 ALLOWED_GENDERS = {"male", "female"}
 ALLOWED_EVENTS = {"work", "date", "party", "casual"}
 ALLOWED_SEASONS = {"summer", "winter"}
-ALLOWED_MODES = {"mock", "partial_tryon", "full_tryon"}
+# ISOLATED EXTENSION: user_photo_tryon added without modifying existing modes
+ALLOWED_MODES = {"mock", "partial_tryon", "full_tryon", "user_photo_tryon"}
 
 
 def validate_outfit_seed_input(

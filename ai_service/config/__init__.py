@@ -1,5 +1,5 @@
 # Config module (v2.5.0)
-from ai_service.config.settings import get_settings, reload_settings, Settings
+from ai_service.config.settings import get_settings, reload_settings, Settings, DEMO_BASELINE_VERSION
 from ai_service.config.providers import (
     get_provider_status,
     get_active_provider,

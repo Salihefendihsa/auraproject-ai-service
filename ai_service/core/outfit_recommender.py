@@ -82,20 +82,32 @@ def load_trends() -> Dict[str, Any]:
 # Lookbook rules influence outfit ranking without overriding seed preferences.
 # This is a permanent system designed for extensibility to future brands.
 # ZARA is the PRIMARY backbone (weight=1.0), other brands provide diversity.
+#
+# ============================================================================
+# DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+# Zara + H&M trend logic with brand weights is FROZEN as of 2024-12-23.
+# ============================================================================
 
 LOOKBOOK_DIR = Path(__file__).parent.parent / "lookbook"
 
 # Brand weights for scoring influence
 # Higher weight = more dominant in rankings
+# ============================================================================
+# GEN Z LAYER: Bershka added as TERTIARY diversity source (2024-12-23)
+# Brand hierarchy: Zara (1.0) > H&M (0.75) > Bershka (0.6)
+# This influences ranking ONLY, never overrides seed lock
+# ============================================================================
 BRAND_WEIGHTS = {
-    "zara": 1.0,    # PRIMARY backbone - must dominate
-    "hm": 0.75,     # SECONDARY diversity layer
+    "zara": 1.0,      # PRIMARY backbone - must dominate
+    "hm": 0.75,       # SECONDARY diversity layer
+    "bershka": 0.6,   # TERTIARY Gen Z / youth style layer
 }
 
 # Brand file mappings
 BRAND_FILES = {
     "zara": "zara_fw_2024.json",
     "hm": "hm_fw_2024.json",
+    "bershka": "bershka_fw_2024.json",  # Gen Z street / Y2K styles
 }
 
 
@@ -115,7 +127,7 @@ def load_lookbook_rules(brands: Optional[List[str]] = None) -> List[Dict[str, An
         System continues normally if any lookbook is missing.
     """
     if brands is None:
-        brands = ["zara", "hm"]  # Default: Zara first, H&M second
+        brands = ["zara", "hm", "bershka"]  # Default: Zara first, H&M second, Bershka third
     
     all_rules = []
     
@@ -278,6 +290,11 @@ def lookbook_rule_match_score(
 # READ-ONLY layer: generates natural-language explanations for outfits.
 # Does NOT affect scoring, ranking, or selection.
 # Uses LLM with low temperature for concise, consistent explanations.
+#
+# ============================================================================
+# DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+# Trend explanation mini-layer is FROZEN as of 2024-12-23.
+# ============================================================================
 
 async def generate_trend_explanation(
     outfit: Dict[str, Any],
@@ -685,6 +702,10 @@ def get_compatible_colors(seed_color: str, catalog: Dict) -> List[str]:
 
 
 # ==================== SCORING FUNCTIONS ====================
+# ============================================================================
+# DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+# Scoring weights (40% color, 30% style, 20% event, 10% trend) are FROZEN.
+# ============================================================================
 
 def color_compatibility_score(item_color: str, seed_color: str, compatible_colors: List[str]) -> float:
     """
@@ -885,6 +906,10 @@ def calculate_final_score(
 
 
 # ==================== MAIN GENERATION ====================
+# ============================================================================
+# DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+# Outfit generation with seed lock and brand mix constraint is FROZEN.
+# ============================================================================
 
 def generate_outfits(
     seed: Dict[str, Any],
@@ -1046,8 +1071,14 @@ def generate_outfits(
     # Enforce hard constraints to maintain Zara dominance:
     #   - MIN 2 outfits from Zara (primary backbone)
     #   - MAX 2 outfits from H&M (secondary diversity)
+    #   - MAX 1 outfit from Bershka (tertiary Gen Z layer)
     #   - Remaining slots filled by highest score regardless of brand
     # This affects ONLY selection, NOT scoring formulas or seed lock.
+    #
+    # ========================================================================
+    # DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+    # Brand mix constraint is FROZEN as of 2024-12-23.
+    # ========================================================================
     
     # Sort all candidates by score (best first)
     outfits.sort(key=lambda x: -x.get("outfit_score", 0))
@@ -1055,7 +1086,8 @@ def generate_outfits(
     # Separate by brand
     zara_outfits = [o for o in outfits if o.get("lookbook_brand") == "Zara"]
     hm_outfits = [o for o in outfits if o.get("lookbook_brand") == "H&M"]
-    other_outfits = [o for o in outfits if o.get("lookbook_brand") not in ("Zara", "H&M")]
+    bershka_outfits = [o for o in outfits if o.get("lookbook_brand") == "Bershka"]
+    other_outfits = [o for o in outfits if o.get("lookbook_brand") not in ("Zara", "H&M", "Bershka")]
     
     # Build final selection with brand constraints
     final_outfits = []
@@ -1079,7 +1111,17 @@ def generate_outfits(
         used_indices.add(id(o))
         hm_count += 1
     
-    # Step 3: Fill remaining slots with highest-scoring unused outfits
+    # Step 3: Add up to MAX 1 from Bershka (Gen Z diversity layer)
+    # Bershka provides youth style variation but never dominates
+    bershka_count = 0
+    for o in bershka_outfits:
+        if len(final_outfits) >= 5 or bershka_count >= 1:
+            break
+        final_outfits.append(o)
+        used_indices.add(id(o))
+        bershka_count += 1
+    
+    # Step 4: Fill remaining slots with highest-scoring unused outfits
     remaining = [o for o in outfits if id(o) not in used_indices]
     for o in remaining:
         if len(final_outfits) >= 5:

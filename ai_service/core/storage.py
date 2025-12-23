@@ -1,5 +1,38 @@
 """
 Storage Manager for job data.
+
+============================================================================
+CDN READINESS DOCUMENTATION
+============================================================================
+
+This module manages the file storage structure for job data and assets.
+All paths are designed to be CDN-friendly with predictable, absolute URLs.
+
+STORAGE STRUCTURE (CDN CANDIDATES):
+-----------------------------------
+base_data_dir/
+├── jobs/{job_id}/
+│   ├── renders/           <- CDN CANDIDATE: rendered outfit images
+│   │   └── outfit_*.png      Served at: /ai/assets/jobs/{job_id}/renders/*
+│   ├── masks/             <- CDN CANDIDATE: segmentation masks
+│   │   └── *.png             Served at: /ai/assets/jobs/{job_id}/masks/*
+│   ├── input.jpg          <- CDN CANDIDATE: input image
+│   │   └──                   Served at: /ai/assets/jobs/{job_id}/input.jpg
+│   └── job.json           <- NOT CDN: job metadata
+└── wardrobe/{user_id}/    <- CDN CANDIDATE: user wardrobe items
+    └── *.png                 Served at: /ai/assets/wardrobe/{user_id}/*
+
+RENDER_URL FORMAT:
+------------------
+All render_url values follow this absolute path pattern:
+  /ai/assets/jobs/{job_id}/renders/{filename}
+
+This ensures:
+- Predictable, cacheable URLs for CDN
+- Path traversal protection via sanitize_asset_path()
+- No need for URL rewriting at CDN level
+
+============================================================================
 """
 import json
 import logging

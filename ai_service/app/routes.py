@@ -32,7 +32,14 @@ from ai_service.core.rate_limit import (
     get_client_ip,
 )
 from ai_service.config import get_provider_status, get_settings
+from ai_service.config.settings import DEMO_BASELINE_VERSION
 from ai_service.cache import cache_manager
+from ai_service.cache.seed_cache import (
+    compute_image_hash,
+    generate_seed_cache_key,
+    get_cached_seed_response,
+    set_cached_seed_response,
+)
 from ai_service.db import mongo
 from ai_service.db.history import (
     get_user_history,
@@ -182,9 +189,18 @@ def _get_file_extension(upload_file: UploadFile) -> str:
 
 
 def _compute_aggregate_tryon_mode(outfits: list) -> str:
-    """Compute aggregate tryon_mode from all outfits."""
+    """
+    Compute aggregate tryon_mode from all outfits.
+    
+    Existing modes (FROZEN):
+    - full, partial, partial_fallback, mock
+    
+    New modes (ISOLATED EXTENSION):
+    - user_photo, user_photo_fallback, mannequin_fallback
+    """
     modes = [o.get("tryon_mode", "mock") for o in outfits]
     
+    # Existing mode checks (DO NOT MODIFY)
     if all(m == "full" for m in modes):
         return "full"
     elif all(m == "mock" for m in modes):
@@ -193,6 +209,13 @@ def _compute_aggregate_tryon_mode(outfits: list) -> str:
         return "partial"
     elif all(m == "partial_fallback" for m in modes):
         return "partial_fallback"
+    # ISOLATED EXTENSION: New user photo modes
+    elif all(m == "user_photo" for m in modes):
+        return "user_photo"
+    elif all(m == "user_photo_fallback" for m in modes):
+        return "user_photo_fallback"
+    elif all(m == "mannequin_fallback" for m in modes):
+        return "mannequin_fallback"
     else:
         return "mixed"
 
@@ -251,6 +274,26 @@ async def create_outfit_seed(
         except ValidationError as ve:
             raise HTTPException(status_code=ve.status_code, detail=ve.message)
         
+        # ================================================================
+        # ISOLATED EXTENSION: User Photo Try-On Feature Flag
+        # ================================================================
+        # Check if user_photo_tryon mode is enabled before proceeding.
+        # This does NOT affect existing modes (mock, partial_tryon, full_tryon).
+        # ================================================================
+        if validated["mode"] == "user_photo_tryon":
+            settings = get_settings()
+            if not settings.user_photo_tryon_enabled:
+                raise HTTPException(
+                    status_code=400,
+                    detail="User photo try-on is currently disabled. Set AURA_USER_PHOTO_TRYON_ENABLED=true to enable."
+                )
+            # User photo try-on requires person_image
+            if not person_image_provided:
+                raise HTTPException(
+                    status_code=400,
+                    detail="user_photo_tryon mode requires person_image to be uploaded."
+                )
+        
         # Validate seed_category if provided
         validated_seed_category = None
         if seed_category:
@@ -268,6 +311,7 @@ async def create_outfit_seed(
         # Save images with proper extensions
         seed_image_path = None
         person_image_path = None
+        seed_image_content = None  # For cache key computation
         
         job_path = storage.get_job_path(job_id)
         job_path.mkdir(parents=True, exist_ok=True)
@@ -276,6 +320,7 @@ async def create_outfit_seed(
             ext = _get_file_extension(seed_image)
             seed_path = job_path / f"seed_image{ext}"
             content = await seed_image.read()
+            seed_image_content = content  # Store for cache key
             with open(seed_path, "wb") as f:
                 f.write(content)
             seed_image_path = str(seed_path)
@@ -288,7 +333,35 @@ async def create_outfit_seed(
                 f.write(content)
             person_image_path = str(person_path)
         
-        # Run seed job pipeline
+        # ==================== CACHE LOOKUP ====================
+        # Check cache BEFORE expensive operations (LLM, try-on rendering)
+        # Cache key includes: image hash, gender, event, season, mode, baseline_version
+        # WHY: Same inputs should produce same deterministic outputs
+        cache_key = None
+        cache_hit = False
+        
+        if seed_image_content:
+            seed_image_hash = compute_image_hash(seed_image_content)
+            cache_key = generate_seed_cache_key(
+                seed_image_hash=seed_image_hash,
+                gender=validated["gender"],
+                event=validated["event"],
+                season=validated["season"],
+                mode=validated["mode"],
+                baseline_version=DEMO_BASELINE_VERSION
+            )
+            
+            # Check cache - if hit, return immediately (skip expensive pipeline)
+            cached_response = get_cached_seed_response(cache_key)
+            if cached_response:
+                logger.info(f"[{job_id}] Cache HIT - returning cached response")
+                cached_response["job_id"] = job_id  # Update job_id for this request
+                cached_response["cache_hit"] = True
+                headers = get_rate_limit_headers(request, user)
+                return JSONResponse(content=cached_response, headers=headers)
+        
+        # ==================== CACHE MISS - RUN PIPELINE ====================
+        # Run seed job pipeline (expensive: LLM calls, try-on rendering)
         try:
             result = run_outfit_seed_job(
                 job_id=job_id,
@@ -338,11 +411,14 @@ async def create_outfit_seed(
         
         # Return response contract
         # demo_ready: true indicates all fields are populated for demo use
+        # baseline_version: DEMO BASELINE FREEZE marker
         response = {
             "version": "3.0.0",
+            "baseline_version": DEMO_BASELINE_VERSION,  # DEMO BASELINE FREEZE v1.0
             "job_id": job_id,
             "demo_ready": True,  # DEMO flag: all fields ready for frontend
             "seed_locked": True,
+            "cache_hit": False,  # This is a fresh response
             "seed": {
                 "status": "detected",
                 "category": seed.get("category"),
@@ -355,6 +431,12 @@ async def create_outfit_seed(
             "subject_type": subject_type,
             "message": "Job created. Pipeline completed."
         }
+        
+        # ==================== CACHE SET ====================
+        # Store response in cache for future identical requests
+        # WHY: Avoid re-running expensive LLM and try-on for same inputs
+        if cache_key:
+            set_cached_seed_response(cache_key, response)
         
         headers = get_rate_limit_headers(request, user)
         return JSONResponse(content=response, headers=headers)
@@ -1030,6 +1112,24 @@ async def catalog_outfit(
         logger.error(f"Catalog outfit failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================================================
+# STATIC ASSET ROUTE (CDN CANDIDATE)
+# ============================================================================
+# This endpoint serves rendered images, masks, and other static assets.
+# 
+# CDN INTEGRATION NOTES:
+# - All paths are absolute: /ai/assets/jobs/{job_id}/renders/outfit_1.png
+# - Path traversal protection is enforced via sanitize_asset_path()
+# - Cache-Control headers could be added here for CDN hints
+# - No CDN integration implemented yet - this is structural readiness only
+#
+# CDN CANDIDATE PATHS:
+# - /ai/assets/jobs/{job_id}/renders/*.png   (outfit renders)
+# - /ai/assets/jobs/{job_id}/masks/*.png     (segmentation masks)
+# - /ai/assets/jobs/{job_id}/input.jpg       (input images)
+# - /ai/assets/wardrobe/{user_id}/*          (user wardrobe items)
+# ============================================================================
+
 @router.get("/ai/assets/{file_path:path}")
 async def serve_asset(
     file_path: str,
@@ -1037,6 +1137,9 @@ async def serve_asset(
 ):
     """
     Serve static files from job directories.
+    
+    CDN CANDIDATE: This endpoint serves static rendered images that
+    can be fronted by a CDN for improved performance.
     
     With path traversal protection.
     """
@@ -1061,6 +1164,8 @@ async def serve_asset(
         if not full_path.is_file():
             raise HTTPException(status_code=400, detail="Not a file")
         
+        # CDN READINESS: Cache-Control header could be added here
+        # Example: headers={"Cache-Control": "public, max-age=86400"}
         return FileResponse(full_path)
         
     except HTTPException:

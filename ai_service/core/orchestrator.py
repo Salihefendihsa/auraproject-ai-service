@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 # ==================== OUTFIT SEED PIPELINE ====================
+# ============================================================================
+# DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+# Seed lock behavior and full → partial fallback logic is FROZEN.
+# ============================================================================
 
 from ai_service.core.outfit_recommender import (
     load_catalog,
@@ -116,7 +120,26 @@ def run_outfit_seed_job(
     )
     
     # Step 6: Try-On Rendering based on mode
-    if mode == "full_tryon":
+    # ========================================================================
+    # EXISTING MODES (FROZEN - DO NOT MODIFY):
+    #   - full_tryon: Full body try-on with partial fallback
+    #   - partial_tryon: Upper body try-on only
+    #   - mock: No rendering, preview only
+    #
+    # NEW MODE (ISOLATED EXTENSION):
+    #   - user_photo_tryon: Render onto user's uploaded photo
+    # ========================================================================
+    
+    if mode == "user_photo_tryon":
+        # ISOLATED EXTENSION: User photo try-on
+        # Fallback to partial_tryon on any failure
+        outfits = _render_user_photo_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=person_image_path,
+            gender=gender
+        )
+    elif mode == "full_tryon":
         # Attempt full try-on, fallback to partial on failure
         outfits = _render_full_tryon_outfits(
             job_id=job_id,
@@ -172,6 +195,11 @@ def _render_partial_tryon_outfits(
     
     Only renders upper body (top + outerwear).
     Lower body and shoes remain mock.
+    
+    ========================================================================
+    DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+    Partial try-on pipeline is FROZEN as of 2024-12-23.
+    ========================================================================
     """
     from ai_service.renderer.partial_tryon import render_outfit_partial
     
@@ -216,6 +244,11 @@ def _render_full_tryon_outfits(
     
     Attempts full body try-on with warp-based fitting.
     Falls back to partial try-on if full fails.
+    
+    ========================================================================
+    DO NOT MODIFY BASELINE LOGIC BELOW - DEMO BASELINE FREEZE v1.0
+    Full try-on with partial fallback is FROZEN as of 2024-12-23.
+    ========================================================================
     """
     from ai_service.renderer.full_tryon import render_outfit_full
     from ai_service.renderer.partial_tryon import render_outfit_partial
@@ -264,6 +297,128 @@ def _render_full_tryon_outfits(
                 logger.warning(f"[{job_id}] Outfit {rank}: all renders failed, using mock")
     
     return outfits
+
+
+# ============================================================================
+# ISOLATED EXTENSION: User Photo Try-On
+# ============================================================================
+# This function is ONLY called when mode == "user_photo_tryon".
+# It does NOT modify any existing mannequin try-on logic.
+# On any failure, it falls back to partial_tryon on mannequin.
+# ============================================================================
+
+def _render_user_photo_tryon_outfits(
+    job_id: str,
+    outfits: list,
+    person_image_path: Optional[str],
+    gender: str
+) -> list:
+    """
+    Render outfits onto user's uploaded photo.
+    
+    ISOLATED EXTENSION: This function is completely separate from
+    mannequin try-on. It uses the user_photo_tryon module.
+    
+    Fallback Guarantee:
+    - If person_image_path is missing → fallback to partial_tryon
+    - If person detection fails → fallback to partial_tryon
+    - If any render error occurs → mark as user_photo_fallback
+    """
+    logger.info(f"[{job_id}] Starting user photo try-on render")
+    
+    # Validation: person_image is required for user photo try-on
+    if not person_image_path:
+        logger.warning(f"[{job_id}] No person image provided, falling back to partial_tryon")
+        return _render_partial_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=None,
+            gender=gender
+        )
+    
+    try:
+        # Step 1: Validate that image is a valid human photo
+        from ai_service.renderer.user_photo_detection import detect_user_photo
+        detection_result = detect_user_photo(person_image_path)
+        
+        if not detection_result.get("is_valid_for_tryon", False):
+            logger.warning(
+                f"[{job_id}] User photo not valid for try-on: "
+                f"{detection_result.get('reason', 'Unknown')}. "
+                f"Falling back to mannequin partial_tryon."
+            )
+            fallback_outfits = _render_partial_tryon_outfits(
+                job_id=job_id,
+                outfits=outfits,
+                person_image_path=person_image_path,
+                gender=gender
+            )
+            for outfit in fallback_outfits:
+                if outfit.get("tryon_mode") in ("partial", "partial_fallback"):
+                    outfit["tryon_mode"] = "mannequin_fallback"
+            return fallback_outfits
+        
+        logger.info(
+            f"[{job_id}] User photo validated: {detection_result.get('reason')} "
+            f"(confidence={detection_result.get('confidence', 0):.2f})"
+        )
+        
+        # Step 2: Render outfits onto user photo
+        from ai_service.renderer.user_photo_tryon import render_all_outfits_user_photo
+        
+        job_path = storage.get_job_path(job_id)
+        
+        rendered_outfits = render_all_outfits_user_photo(
+            job_id=job_id,
+            person_image_path=person_image_path,
+            outfits=outfits,
+            output_dir=job_path
+        )
+        
+        # Step 3: Check if any renders succeeded
+        success_count = sum(
+            1 for o in rendered_outfits 
+            if o.get("tryon_mode") == "user_photo"
+        )
+        
+        if success_count == 0:
+            logger.warning(f"[{job_id}] All user photo renders failed, falling back to mannequin")
+            fallback_outfits = _render_partial_tryon_outfits(
+                job_id=job_id,
+                outfits=outfits,
+                person_image_path=person_image_path,
+                gender=gender
+            )
+            for outfit in fallback_outfits:
+                outfit["tryon_mode"] = "user_photo_fallback"
+            return fallback_outfits
+        
+        logger.info(f"[{job_id}] User photo try-on complete: {success_count}/{len(rendered_outfits)} succeeded")
+        return rendered_outfits
+        
+    except ImportError as e:
+        logger.error(f"[{job_id}] User photo try-on module not available: {e}")
+        fallback_outfits = _render_partial_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=person_image_path,
+            gender=gender
+        )
+        for outfit in fallback_outfits:
+            outfit["tryon_mode"] = "user_photo_fallback"
+        return fallback_outfits
+        
+    except Exception as e:
+        logger.error(f"[{job_id}] User photo try-on failed: {e}")
+        fallback_outfits = _render_partial_tryon_outfits(
+            job_id=job_id,
+            outfits=outfits,
+            person_image_path=person_image_path,
+            gender=gender
+        )
+        for outfit in fallback_outfits:
+            outfit["tryon_mode"] = "user_photo_fallback"
+        return fallback_outfits
 
 
 def _update_job_with_outfits(job_id: str, seed: Dict[str, Any], outfits: list) -> None:
